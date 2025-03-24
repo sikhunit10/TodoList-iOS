@@ -18,22 +18,18 @@ struct TaskListView: View {
     @State private var selectedTaskId: String? = nil
     @AppStorage("completedTasksVisible") private var completedTasksVisible = true
     
-    // Use FetchRequest to automatically update when data changes
-    @FetchRequest private var tasks: FetchedResults<Task>
+    // Define sort descriptors
+    private static let sortDescriptors = [
+        SortDescriptor(\Task.isCompleted, order: .forward),
+        SortDescriptor(\Task.dueDate, order: .forward),
+        SortDescriptor(\Task.dateCreated, order: .reverse)
+    ]
     
-    // Initialize with default fetch request
-    init() {
-        // Create a temporary fetch request (will be updated in .onChange)
-        let fetchRequest = NSFetchRequest<Task>(entityName: "Task")
-        fetchRequest.sortDescriptors = [
-            NSSortDescriptor(key: "isCompleted", ascending: true),
-            NSSortDescriptor(key: "dueDate", ascending: true),
-            NSSortDescriptor(key: "dateCreated", ascending: false)
-        ]
-        
-        // Initialize the fetch request
-        _tasks = FetchRequest(fetchRequest: fetchRequest)
-    }
+    // Use FetchRequest to automatically update when data changes
+    @FetchRequest(
+        sortDescriptors: sortDescriptors,
+        animation: .default
+    ) private var tasks: FetchedResults<Task>
     
     var body: some View {
         VStack(spacing: 0) {
@@ -164,10 +160,7 @@ struct TaskListView: View {
     // MARK: - Private Methods
     
     private func updateFetchRequest() {
-        // Create a new fetch request for tasks
-        let fetchRequest = NSFetchRequest<Task>(entityName: "Task")
-        
-        // Apply filters
+        // Build predicates based on current filter and search text
         var predicates: [NSPredicate] = []
         
         // Search text filter
@@ -211,29 +204,11 @@ struct TaskListView: View {
             }
         }
         
-        // Set the predicate on the fetch request
-        if !predicates.isEmpty {
-            fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
-        }
+        // Create a compound predicate if we have any predicates
+        let predicate = predicates.isEmpty ? nil : NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
         
-        // Sort by completion status, due date, and then creation date
-        fetchRequest.sortDescriptors = [
-            NSSortDescriptor(key: "isCompleted", ascending: true),
-            NSSortDescriptor(key: "dueDate", ascending: true),
-            NSSortDescriptor(key: "dateCreated", ascending: false)
-        ]
-        
-        // Update the fetch request with animation
-        tasks.nsPredicate = fetchRequest.predicate
-        // Convert NSSortDescriptor to SortDescriptor<Task>
-        let sortDescriptors: [SortDescriptor<Task>] = fetchRequest.sortDescriptors?.compactMap { nsSortDescriptor in
-            if let key = nsSortDescriptor.key {
-                return SortDescriptor<Task>(key, order: nsSortDescriptor.ascending ? .forward : .reverse)
-            }
-            return nil
-        } ?? []
-        
-        tasks.sortDescriptors = sortDescriptors
+        // Update only the predicate, keeping the sort descriptors the same
+        tasks.nsPredicate = predicate
     }
     
     private func deleteTask(_ task: Task) {
