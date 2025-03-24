@@ -20,6 +20,9 @@ struct TaskListView: View {
     @State private var tasks: [NSManagedObject] = []
     @AppStorage("completedTasksVisible") private var completedTasksVisible = true
     
+    // For Core Data change notification
+    @State private var notificationToken: NSObjectProtocol? = nil
+    
     var body: some View {
         VStack(spacing: 0) {
             // Filter picker
@@ -167,6 +170,10 @@ struct TaskListView: View {
         }
         .onAppear {
             loadTasks()
+            registerForCoreDataChanges()
+        }
+        .onDisappear {
+            unregisterFromCoreDataChanges()
         }
         .onChange(of: completedTasksVisible) { _ in
             loadTasks()
@@ -258,6 +265,35 @@ struct TaskListView: View {
         if dataController.toggleTaskCompletion(id: id) {
             // Reload tasks to update the UI
             loadTasks()
+        }
+    }
+    
+    // MARK: - Core Data Change Notifications
+    
+    private func registerForCoreDataChanges() {
+        // Remove any existing notification observer
+        unregisterFromCoreDataChanges()
+        
+        // Register for context did save notification
+        notificationToken = NotificationCenter.default.addObserver(
+            forName: NSManagedObjectContext.didSaveObjectsNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // Only reload if the view is still active
+            guard let self = self else { return }
+            
+            // Reload with a slight delay to ensure Core Data has fully processed the changes
+            DispatchQueue.main.async {
+                self.loadTasks()
+            }
+        }
+    }
+    
+    private func unregisterFromCoreDataChanges() {
+        if let token = notificationToken {
+            NotificationCenter.default.removeObserver(token)
+            notificationToken = nil
         }
     }
 }
