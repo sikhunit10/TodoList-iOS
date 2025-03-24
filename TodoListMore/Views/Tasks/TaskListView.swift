@@ -199,15 +199,18 @@ struct TaskListView: View {
             predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: true)))
         case .today:
             let calendar = Calendar.current
-            let startOfDay = calendar.startOfDay(for: Date())
-            let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
             
-            // Create a compound predicate for due date that includes:
-            // 1. Tasks due today (falls between start and end of today)
-            // 2. Tasks that don't have a due date set
-            let dueTodayPredicate = NSPredicate(format: "dueDate >= %@ AND dueDate <= %@", 
+            // Get the start of today
+            let startOfDay = calendar.startOfDay(for: Date())
+            
+            // Get the start of tomorrow
+            let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+            
+            // Get tasks where the due date is today (greater than or equal to start of today,
+            // but less than start of tomorrow)
+            let dueTodayPredicate = NSPredicate(format: "dueDate >= %@ AND dueDate < %@", 
                                                startOfDay as NSDate, 
-                                               endOfDay as NSDate)
+                                               startOfTomorrow as NSDate)
             
             predicates.append(dueTodayPredicate)
             predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: false)))
@@ -345,8 +348,8 @@ struct TaskRow: View {
                             .strikethrough(isCompleted)
                             .lineLimit(1)
                         
-                        // Due date countdown if within 3 days
-                        if let dueDate = dueDate, isDueSoon(dueDate) {
+                        // Due date countdown if within 3 days and not completed
+                        if let dueDate = dueDate, isDueSoon(dueDate) && !isCompleted {
                             Text(formatDueDate(dueDate))
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(isOverdue(dueDate) ? .red : .orange)
@@ -493,20 +496,21 @@ struct TaskRow: View {
     private func formatDueDate(_ date: Date) -> String {
         let calendar = Calendar.current
         let now = Date()
-        let components = calendar.dateComponents([.day, .hour], from: now, to: date)
         
-        if let day = components.day {
-            if day < 0 {
-                return "Overdue"
-            } else if day == 0 {
-                return "Due today"
-            } else if day == 1 {
-                return "Due tomorrow"
-            } else {
-                return "Due in \(day) days"
-            }
+        // Compare by calendar day, not just numerical difference
+        let todayStart = calendar.startOfDay(for: now)
+        let dateStart = calendar.startOfDay(for: date)
+        let dayDifference = calendar.dateComponents([.day], from: todayStart, to: dateStart).day ?? 0
+        
+        if dayDifference < 0 {
+            return "Overdue"
+        } else if dayDifference == 0 {
+            return "Due today"
+        } else if dayDifference == 1 {
+            return "Due tomorrow"
+        } else {
+            return "Due in \(dayDifference) days"
         }
-        return ""
     }
     
     // Format time ago
