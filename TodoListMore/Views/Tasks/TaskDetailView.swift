@@ -21,18 +21,21 @@ struct TaskDetailView: View {
         List {
             // Task title and completion
             Section {
-                HStack {
+                HStack(spacing: 12) {
                     Button(action: toggleCompletion) {
                         Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
                             .foregroundColor(task.isCompleted ? .accentColor : .secondary)
-                            .font(.system(size: 22))
+                            .font(.system(size: 24))
                     }
                     .buttonStyle(.plain)
                     
                     Text(task.title ?? "Untitled Task")
                         .font(.headline)
+                        .fontWeight(.semibold)
                         .strikethrough(task.isCompleted)
+                        .foregroundColor(task.isCompleted ? .secondary : .primary)
                 }
+                .padding(.vertical, 8)
             }
             
             // Task description
@@ -45,65 +48,114 @@ struct TaskDetailView: View {
             
             // Task metadata and details
             Section {
-                if let dueDate = task.dueDate {
-                    HStack {
-                        Label("Due Date", systemImage: "calendar")
-                        Spacer()
-                        Text(dueDate, style: .date)
+                HStack {
+                    Label {
+                        Text("Due Date")
+                    } icon: {
+                        Image(systemName: "calendar")
                             .foregroundColor(.secondary)
                     }
-                    .accessibilityElement(children: .combine)
+                    Spacer()
+                    if let dueDate = task.dueDate {
+                        Text(dueDate, style: .date)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("None")
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                            .opacity(0.7)
+                    }
                 }
+                .padding(.vertical, 4)
+                .accessibilityElement(children: .combine)
                 
                 HStack {
-                    Label("Priority", systemImage: "flag")
+                    Label {
+                        Text("Priority")
+                    } icon: {
+                        Image(systemName: "flag.fill")
+                            .foregroundColor(.secondary)
+                    }
                     Spacer()
                     Text(priorityText)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(priorityColor.opacity(0.15))
                         .foregroundColor(priorityColor)
+                        .cornerRadius(8)
                 }
+                .padding(.vertical, 4)
                 .accessibilityElement(children: .combine)
                 
                 // Always show category (either actual category or "Uncategorized")
                 HStack {
-                    Label("Category", systemImage: "folder")
+                    Label {
+                        Text("Category") 
+                    } icon: {
+                        Image(systemName: "tag.fill")
+                            .foregroundColor(.secondary)
+                    }
                     Spacer()
-                    HStack {
+                    HStack(spacing: 6) {
                         if let category = task.category {
                             Circle()
                                 .fill(Color(hex: category.colorHex ?? "#CCCCCC"))
-                                .frame(width: 12, height: 12)
+                                .frame(width: 14, height: 14)
                             Text(category.name ?? "")
+                                .bold()
                         } else {
                             Circle()
                                 .fill(Color(hex: "#CCCCCC"))
-                                .frame(width: 12, height: 12)
+                                .frame(width: 14, height: 14)
                             Text("Uncategorized")
+                                .bold()
                         }
                     }
                     .foregroundColor(.secondary)
+                    .padding(.vertical, 2)
+                    .padding(.horizontal, 8)
+                    .background(Color.secondary.opacity(0.1))
+                    .cornerRadius(12)
                 }
+                .padding(.vertical, 4)
                 .accessibilityElement(children: .combine)
             }
             
             // Timestamps
-            Section {
+            Section(header: Text("History")) {
                 if let dateCreated = task.dateCreated {
                     HStack {
-                        Label("Created", systemImage: "clock")
+                        Label {
+                            Text("Created")
+                        } icon: {
+                            Image(systemName: "plus.circle")
+                                .foregroundColor(.secondary)
+                        }
                         Spacer()
                         Text(dateCreated, style: .date)
+                            .fontWeight(.medium)
                             .foregroundColor(.secondary)
                     }
+                    .padding(.vertical, 4)
                     .accessibilityElement(children: .combine)
                 }
                 
                 if let dateModified = task.dateModified {
                     HStack {
-                        Label("Last Modified", systemImage: "clock.arrow.circlepath")
+                        Label {
+                            Text("Last Modified")
+                        } icon: {
+                            Image(systemName: "pencil.circle")
+                                .foregroundColor(.secondary)
+                        }
                         Spacer()
                         Text(dateModified, style: .date)
+                            .fontWeight(.medium)
                             .foregroundColor(.secondary)
                     }
+                    .padding(.vertical, 4)
                     .accessibilityElement(children: .combine)
                 }
             }
@@ -113,7 +165,13 @@ struct TaskDetailView: View {
                 Button(role: .destructive) {
                     showingDeleteAlert = true
                 } label: {
-                    Label("Delete Task", systemImage: "trash")
+                    HStack {
+                        Spacer()
+                        Label("Delete Task", systemImage: "trash")
+                            .font(.headline)
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
                 }
             }
         }
@@ -130,7 +188,10 @@ struct TaskDetailView: View {
         .sheet(isPresented: $showingEditSheet) {
             NavigationStack {
                 if let taskId = task.id {
-                    TaskFormView(mode: .edit(taskId.uuidString))
+                    TaskFormView(mode: .edit(taskId.uuidString), onSave: {
+                        // Refresh task data from Core Data after edit
+                        viewContext.refresh(task, mergeChanges: true)
+                    })
                 }
             }
         }

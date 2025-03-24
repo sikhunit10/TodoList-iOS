@@ -262,7 +262,7 @@ struct CategoryForm: View {
             
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
-                    saveCategory()
+                    let success = saveCategory()
                     dismiss()
                 }
                 .disabled(name.isEmpty || isLoading)
@@ -302,21 +302,27 @@ struct CategoryForm: View {
         isLoading = false
     }
     
-    private func saveCategory() {
+    private func saveCategory() -> Bool {
+        var success = false
+        
         switch mode {
         case .add:
-            _ = dataController.addCategory(
+            if let _ = dataController.addCategory(
                 name: name,
                 colorHex: predefinedColors[selectedColorIndex]
-            )
+            ) {
+                success = true
+            }
             
         case .edit(let categoryId):
-            _ = dataController.updateCategory(
+            success = dataController.updateCategory(
                 id: categoryId,
                 name: name,
                 colorHex: predefinedColors[selectedColorIndex]
             )
         }
+        
+        return success
     }
     
     // Helper computed property to determine if we're in add mode

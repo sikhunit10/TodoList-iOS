@@ -26,8 +26,12 @@ struct TaskFormView: View {
     // Form mode (add new or edit existing task)
     let mode: FormMode
     
-    init(mode: FormMode) {
+    // Callback for when a task is saved
+    var onSave: (() -> Void)?
+    
+    init(mode: FormMode, onSave: (() -> Void)? = nil) {
         self.mode = mode
+        self.onSave = onSave
         
         // When in edit mode, we'll load the task in onAppear
     }
@@ -61,41 +65,84 @@ struct TaskFormView: View {
             
             Section(header: Text("Category")) {
                 if categories.isEmpty {
-                    Text("No categories available")
-                        .foregroundColor(.secondary)
-                    
-                    Button("Add Category") {
-                        // This would open a category form in a complete app
+                    VStack(alignment: .center, spacing: 12) {
+                        Text("No categories available")
+                            .foregroundColor(.secondary)
+                            .padding(.top, 8)
+                        
+                        Button {
+                            // This would open a category form in a complete app
+                        } label: {
+                            Label("Add Category", systemImage: "plus.circle")
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.accentColor)
+                        .padding(.bottom, 8)
                     }
+                    .frame(maxWidth: .infinity)
                 } else {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(categories, id: \.self) { category in
-                                let categoryId = category.value(forKey: "id") as? UUID
-                                let name = category.value(forKey: "name") as? String ?? ""
-                                let colorHex = category.value(forKey: "colorHex") as? String ?? "#CCCCCC"
+                    // Add "None" option
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button {
+                            selectedCategoryId = nil
+                        } label: {
+                            HStack {
+                                Circle()
+                                    .fill(Color(hex: "#CCCCCC"))
+                                    .frame(width: 14, height: 14)
                                 
-                                VStack {
-                                    Circle()
-                                        .fill(Color(hex: colorHex))
-                                        .frame(width: 30, height: 30)
-                                        .overlay(
-                                            Circle()
-                                                .stroke(Color.primary, lineWidth: selectedCategoryId == categoryId ? 2 : 0)
-                                                .padding(2)
-                                        )
-                                    
-                                    Text(name)
-                                        .font(.caption)
+                                Text("None")
+                                    .foregroundColor(.primary)
+                                
+                                Spacer()
+                                
+                                if selectedCategoryId == nil {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.accentColor)
                                 }
-                                .onTapGesture {
-                                    selectedCategoryId = categoryId
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.vertical, 6)
+                        
+                        Divider()
+                        
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 2) {
+                                ForEach(categories, id: \.self) { category in
+                                    let categoryId = category.value(forKey: "id") as? UUID
+                                    let name = category.value(forKey: "name") as? String ?? ""
+                                    let colorHex = category.value(forKey: "colorHex") as? String ?? "#CCCCCC"
+                                    
+                                    Button {
+                                        selectedCategoryId = categoryId
+                                    } label: {
+                                        HStack {
+                                            Circle()
+                                                .fill(Color(hex: colorHex))
+                                                .frame(width: 14, height: 14)
+                                            
+                                            Text(name)
+                                                .foregroundColor(.primary)
+                                            
+                                            Spacer()
+                                            
+                                            if selectedCategoryId == categoryId {
+                                                Image(systemName: "checkmark")
+                                                    .foregroundColor(.accentColor)
+                                            }
+                                        }
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.vertical, 8)
                                 }
                             }
                         }
-                        .padding(.vertical, 8)
+                        .frame(maxHeight: 200)
                     }
-                    .frame(height: 60)
                 }
             }
         }
@@ -109,7 +156,10 @@ struct TaskFormView: View {
             
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
-                    saveTask()
+                    let success = saveTask()
+                    // Always call onSave when dismissing the form, as the user
+                    // might expect the list to refresh even if the save operation failed
+                    onSave?()
                     dismiss()
                 }
                 .disabled(title.isEmpty)
@@ -180,20 +230,24 @@ struct TaskFormView: View {
         isLoading = false
     }
     
-    private func saveTask() {
+    private func saveTask() -> Bool {
+        var success = false
+        
         switch mode {
         case .add:
-            _ = dataController.addTask(
+            if let _ = dataController.addTask(
                 title: title,
                 description: taskDescription,
                 dueDate: hasDueDate ? dueDate : nil,
                 priority: priority,
                 categoryId: selectedCategoryId
-            )
+            ) {
+                success = true
+            }
             
         case .edit(let taskId):
             if let uuid = UUID(uuidString: taskId) {
-                _ = dataController.updateTask(
+                success = dataController.updateTask(
                     id: uuid,
                     title: title,
                     description: taskDescription,
@@ -205,6 +259,8 @@ struct TaskFormView: View {
                 )
             }
         }
+        
+        return success
     }
     
     // Helper computed property to determine if we're in add mode

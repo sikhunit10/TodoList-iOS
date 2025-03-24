@@ -40,6 +40,9 @@ struct TaskListView: View {
                     // Show placeholders while loading
                     ForEach(0..<5) { index in
                         TaskPlaceholderRow(index: index)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                            .padding(.horizontal, 8)
                     }
                 } else if tasks.isEmpty {
                     VStack(spacing: 20) {
@@ -64,8 +67,8 @@ struct TaskListView: View {
                         } label: {
                             Text("Add Task")
                                 .fontWeight(.medium)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 10)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 12)
                         }
                         .buttonStyle(.borderedProminent)
                         .padding(.top, 10)
@@ -77,7 +80,10 @@ struct TaskListView: View {
                     .listRowInsets(EdgeInsets())
                 } else {
                     ForEach(tasks, id: \.self) { task in
-                        TaskRow(task: task)
+                        TaskRow(task: task, onTaskUpdated: loadTasks)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                            .padding(.horizontal, 8)
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
                                     deleteTask(task)
@@ -87,7 +93,10 @@ struct TaskListView: View {
                             }
                             .swipeActions(edge: .leading) {
                                 Button {
-                                    toggleTaskCompletion(task)
+                                    // Toggle task completion and force UI update
+                                    withAnimation {
+                                        toggleTaskCompletion(task)
+                                    }
                                 } label: {
                                     let isCompleted = task.value(forKey: "isCompleted") as? Bool ?? false
                                     Label(isCompleted ? "Mark Incomplete" : "Complete", 
@@ -103,7 +112,8 @@ struct TaskListView: View {
                     }
                 }
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.plain)
+            .background(Color(.systemGroupedBackground))
             .refreshable {
                 loadTasks()
             }
@@ -129,19 +139,32 @@ struct TaskListView: View {
         }
         .sheet(isPresented: $showingAddTask) {
             NavigationStack {
-                TaskFormView(mode: .add)
+                TaskFormView(mode: .add, onSave: {
+                    // Force reload on save
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        loadTasks()
+                    }
+                })
             }
             .presentationDetents([.medium, .large])
             .onDisappear {
+                // Also load on disappear as a backup
                 loadTasks()
             }
         }
         .sheet(item: $selectedTaskId) { taskId in
             NavigationStack {
-                TaskFormView(mode: .edit(taskId))
+                TaskFormView(mode: .edit(taskId), onSave: {
+                    // Force reload on save with slight delay to ensure Core Data sync
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        loadTasks()
+                    }
+                })
             }
             .presentationDetents([.medium, .large])
             .onDisappear {
+                // Clear selection and reload tasks
+                selectedTaskId = nil
                 loadTasks()
             }
         }
@@ -234,126 +257,478 @@ struct TaskListView: View {
 // Task row view
 struct TaskRow: View {
     let task: NSManagedObject
+    @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var dataController: DataController
+    var onTaskUpdated: () -> Void = {}
     
     var body: some View {
-        HStack {
-            Button(action: {}) {
-                let isCompleted = task.value(forKey: "isCompleted") as? Bool ?? false
-                Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(isCompleted ? .accentColor : .secondary)
-                    .font(.system(size: 20))
-            }
-            .buttonStyle(.plain)
+        // Get task properties
+        let isCompleted = task.value(forKey: "isCompleted") as? Bool ?? false
+        let title = task.value(forKey: "title") as? String ?? "Untitled Task"
+        let description = task.value(forKey: "taskDescription") as? String ?? ""
+        let priority = task.value(forKey: "priority") as? Int16 ?? 1
+        let dueDate = task.value(forKey: "dueDate") as? Date
+        let dateCreated = task.value(forKey: "dateCreated") as? Date
+        
+        // Category data
+        let category = task.value(forKey: "category") as? NSManagedObject
+        let categoryName = category?.value(forKey: "name") as? String ?? "Uncategorized"
+        let colorHex = category?.value(forKey: "colorHex") as? String ?? "#CCCCCC"
+        let categoryColor = Color(hex: colorHex)
+        
+        // Get gradient based on priority
+        let gradientColors = priorityGradient(priority: priority)
+        
+        // Card with shadow and border
+        ZStack {
+            // Background based on color scheme
+            RoundedRectangle(cornerRadius: 14)
+                .fill(colorScheme == .dark ? Color(.systemGray6) : Color.white)
+                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), 
+                        radius: 5, x: 0, y: 2)
             
-            VStack(alignment: .leading, spacing: 4) {
-                let title = task.value(forKey: "title") as? String ?? "Untitled Task"
-                let isCompleted = task.value(forKey: "isCompleted") as? Bool ?? false
+            // Top gradient line for priority
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(LinearGradient(
+                        gradient: Gradient(colors: gradientColors),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ))
+                    .frame(height: 4)
+                    .cornerRadius(14, corners: [.topLeft, .topRight])
                 
-                Text(title)
-                    .fontWeight(.medium)
-                    .foregroundColor(isCompleted ? .secondary : .primary)
-                    .strikethrough(isCompleted)
-                
-                HStack(spacing: 12) {
-                    if let dueDate = task.value(forKey: "dueDate") as? Date {
-                        Label {
-                            Text(dueDate, style: .date)
-                        } icon: {
-                            Image(systemName: "calendar")
+                Spacer()
+            }
+            
+            // Content with proper spacing
+            VStack(alignment: .leading, spacing: 0) {
+                // Header with title and status
+                HStack(alignment: .center, spacing: 14) {
+                    // Checkbox with animated press effect
+                    Button(action: {
+                        if let id = task.value(forKey: "id") as? UUID {
+                            // Call the toggle task method with animation
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                if dataController.toggleTaskCompletion(id: id) {
+                                    // Reload the task list after a short delay to show animation
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                        onTaskUpdated()
+                                    }
+                                }
+                            }
                         }
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(isCompleted ? categoryColor.opacity(0.15) : Color.clear)
+                                .frame(width: 32, height: 32)
+                            
+                            Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
+                                .foregroundColor(isCompleted ? categoryColor : .secondary)
+                                .font(.system(size: 22, weight: .semibold))
+                        }
+                    }
+                    .buttonStyle(ScaleButtonStyle())
+                    
+                    // Title and due date if near
+                    VStack(alignment: .leading, spacing: 2) {
+                        // Title
+                        Text(title)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(isCompleted ? .secondary : .primary)
+                            .strikethrough(isCompleted)
+                            .lineLimit(1)
+                        
+                        // Due date countdown if within 3 days
+                        if let dueDate = dueDate, isDueSoon(dueDate) {
+                            Text(formatDueDate(dueDate))
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(isOverdue(dueDate) ? .red : .orange)
+                        }
                     }
                     
-                    if let category = task.value(forKey: "category") as? NSManagedObject,
-                       let categoryName = category.value(forKey: "name") as? String,
-                       let colorHex = category.value(forKey: "colorHex") as? String {
-                        
-                        Label {
-                            Text(categoryName)
-                        } icon: {
-                            Circle()
-                                .fill(Color(hex: colorHex))
-                                .frame(width: 8, height: 8)
-                        }
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    } else {
-                        // Default styling for tasks without a category
-                        Label {
-                            Text("Uncategorized")
-                        } icon: {
-                            Circle()
-                                .fill(Color(hex: "#CCCCCC"))
-                                .frame(width: 8, height: 8)
-                        }
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    Spacer()
+                    
+                    // Priority flag
+                    if priority > 1 {
+                        Image(systemName: priority == 3 ? "flag.fill" : "flag")
+                            .foregroundColor(gradientColors[0])
+                            .font(.system(size: 15, weight: .semibold))
+                            .shadow(color: gradientColors[0].opacity(0.3), radius: 2, x: 0, y: 1)
                     }
                 }
-            }
-            
-            Spacer()
-            
-            // Priority indicator
-            let priority = task.value(forKey: "priority") as? Int16 ?? 1
-            if priority > 1 {
-                Image(systemName: priority == 3 ? "exclamationmark.2" : "exclamationmark")
-                    .foregroundColor(priority == 3 ? .red : .orange)
-                    .font(.caption)
+                .padding(.top, 14)
+                .padding(.horizontal, 16)
+                
+                // Show a snippet of the description if available
+                if !description.isEmpty {
+                    Text(description)
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .padding(.top, 6)
+                        .padding(.horizontal, 16)
+                        .padding(.leading, 46) // Align with title text
+                }
+                
+                // Custom divider with insets
+                Rectangle()
+                    .fill(colorScheme == .dark ? Color(.systemGray5) : Color(.systemGray5))
+                    .frame(height: 0.5)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 10)
+                
+                // Footer with metadata
+                HStack(spacing: 10) {
+                    // Due date chip
+                    if let dueDate = dueDate {
+                        HStack(spacing: 4) {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 11))
+                            Text(dueDate, style: .date)
+                                .font(.system(size: 11, weight: .medium))
+                                .lineLimit(1)
+                        }
+                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.secondary)
+                        .padding(.vertical, 5)
+                        .padding(.horizontal, 8)
+                        .background(colorScheme == .dark ? Color.secondary.opacity(0.2) : Color.secondary.opacity(0.08))
+                        .cornerRadius(8)
+                    }
+                    
+                    // Time ago badge
+                    if let dateCreated = dateCreated {
+                        Text(timeAgo(from: dateCreated))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : Color.secondary.opacity(0.8))
+                    }
+                    
+                    Spacer()
+                    
+                    // Category badge
+                    HStack(spacing: 5) {
+                        // Color dot
+                        Circle()
+                            .fill(categoryColor)
+                            .frame(width: 8, height: 8)
+                            .shadow(color: categoryColor.opacity(0.3), radius: 1, x: 0, y: 0)
+                        
+                        // Category name
+                        Text(categoryName)
+                            .font(.system(size: 12, weight: .medium))
+                            .lineLimit(1)
+                    }
+                    .foregroundColor(categoryColor.opacity(0.8))
+                    .padding(.vertical, 5)
+                    .padding(.horizontal, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(categoryColor.opacity(0.12))
+                            .shadow(color: categoryColor.opacity(0.1), radius: 1, x: 0, y: 1)
+                    )
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 14)
             }
         }
+        .frame(height: description.isEmpty ? 116 : 136)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 4)
         .contentShape(Rectangle())
+        // Styling for completed tasks
+        .opacity(isCompleted ? 0.85 : 1.0)
+        // Slight scale effect on completed items
+        .scaleEffect(isCompleted ? 0.98 : 1.0)
+        // Add subtle animation to state changes
+        .animation(.easeInOut(duration: 0.2), value: isCompleted)
+    }
+    
+    // MARK: - Helper Methods
+    
+    // Returns a gradient for the priority indicator
+    private func priorityGradient(priority: Int16) -> [Color] {
+        switch priority {
+        case 1:
+            return [Color.blue, Color.blue.opacity(0.7)]
+        case 2:
+            return [Color.orange, Color.orange.opacity(0.7)]
+        case 3:
+            return [Color.red, Color.red.opacity(0.7)]
+        default:
+            return [Color.blue, Color.blue.opacity(0.7)]
+        }
+    }
+    
+    // Returns the priority color
+    private func priorityColor(_ priority: Int16) -> Color {
+        switch priority {
+        case 1: return .blue
+        case 2: return .orange
+        case 3: return .red
+        default: return .blue
+        }
+    }
+    
+    // Check if due date is within 3 days
+    private func isDueSoon(_ date: Date) -> Bool {
+        let calendar = Calendar.current
+        let now = Date()
+        let components = calendar.dateComponents([.day], from: now, to: date)
+        return components.day != nil && components.day! <= 3
+    }
+    
+    // Check if task is overdue
+    private func isOverdue(_ date: Date) -> Bool {
+        return date < Date()
+    }
+    
+    // Format due date for countdown
+    private func formatDueDate(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        let components = calendar.dateComponents([.day, .hour], from: now, to: date)
+        
+        if let day = components.day {
+            if day < 0 {
+                return "Overdue"
+            } else if day == 0 {
+                return "Due today"
+            } else if day == 1 {
+                return "Due tomorrow"
+            } else {
+                return "Due in \(day) days"
+            }
+        }
+        return ""
+    }
+    
+    // Format time ago
+    private func timeAgo(from date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        let components = calendar.dateComponents([.day, .hour, .minute], from: date, to: now)
+        
+        if let day = components.day, day > 0 {
+            return day == 1 ? "1 day ago" : "\(day) days ago"
+        } else if let hour = components.hour, hour > 0 {
+            return hour == 1 ? "1 hour ago" : "\(hour) hours ago"
+        } else if let minute = components.minute, minute > 0 {
+            return minute == 1 ? "1 min ago" : "\(minute) mins ago"
+        } else {
+            return "Just now"
+        }
+    }
+}
+
+// MARK: - Custom Button Style
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Self.Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.9 : 1)
+            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
+    }
+}
+
+// Extension to apply corner radius to specific corners
+extension View {
+    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
+        clipShape(RoundedCorner(radius: radius, corners: corners))
+    }
+}
+
+struct RoundedCorner: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
+        return Path(path.cgPath)
     }
 }
 
 // Placeholder rows for tasks
 struct TaskPlaceholderRow: View {
     let index: Int
+    @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var dataController: DataController
     
     private let sampleTitles = ["Complete project proposal", "Buy groceries", "Schedule dentist appointment", "Pay bills", "Call mom"]
+    private let sampleDesc = ["Draft a comprehensive proposal for the new client project", "Get milk, eggs, bread and vegetables", "Check available slots for next week", "Pay utilities and credit card", "Ask about weekend plans"]
     private let sampleDates = [Date().addingTimeInterval(86400), Date().addingTimeInterval(172800), Date().addingTimeInterval(345600), Date().addingTimeInterval(432000), Date().addingTimeInterval(518400)]
+    private let sampleCategories = ["Work", "Personal", "Shopping", "Health"]
+    private let sampleColors = ["#FF6B6B", "#4ECDC4", "#FFE66D", "#1A535C"]
+    private let sampleTimeAgo = ["2 days ago", "1 hour ago", "Just now", "3 days ago", "Yesterday"]
+    private let sampleDueSoon = ["Due today", "Due tomorrow", "Overdue", "Due in 2 days"]
     
     var body: some View {
-        HStack {
-            Button(action: {}) {
-                Image(systemName: index % 3 == 0 ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(index % 3 == 0 ? .accentColor : .secondary)
-                    .font(.system(size: 20))
-            }
-            .buttonStyle(.plain)
-            .redacted(reason: .placeholder)
+        // Card with shadow and border
+        ZStack {
+            // Background based on color scheme
+            RoundedRectangle(cornerRadius: 14)
+                .fill(colorScheme == .dark ? Color(.systemGray6) : Color.white)
+                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), 
+                        radius: 5, x: 0, y: 2)
             
-            VStack(alignment: .leading, spacing: 4) {
-                Text(sampleTitles[index % sampleTitles.count])
-                    .fontWeight(.medium)
-                    .foregroundColor(index % 3 == 0 ? .secondary : .primary)
-                    .strikethrough(index % 3 == 0)
-                    .redacted(reason: .placeholder)
+            // Top gradient line for priority
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(LinearGradient(
+                        gradient: Gradient(colors: sampleGradient(index)),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ))
+                    .frame(height: 4)
+                    .cornerRadius(14, corners: [.topLeft, .topRight])
                 
-                HStack(spacing: 12) {
-                    Label {
-                        Text(sampleDates[index % sampleDates.count], style: .date)
-                    } icon: {
-                        Image(systemName: "calendar")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .redacted(reason: .placeholder)
-                }
+                Spacer()
             }
             
-            Spacer()
-            
-            // Priority indicator
-            if index % 4 > 0 {
-                Image(systemName: index % 4 == 3 ? "exclamationmark.2" : "exclamationmark")
-                    .foregroundColor(index % 4 == 3 ? .red : .orange)
-                    .font(.caption)
-                    .redacted(reason: .placeholder)
+            // Content with proper spacing
+            VStack(alignment: .leading, spacing: 0) {
+                // Header with title and status
+                HStack(alignment: .center, spacing: 14) {
+                    // Checkbox
+                    let colorIndex = index % sampleColors.count
+                    let isCompleted = index % 3 == 0
+                    ZStack {
+                        Circle()
+                            .fill(isCompleted ? Color(hex: sampleColors[colorIndex]).opacity(0.15) : Color.clear)
+                            .frame(width: 32, height: 32)
+                        
+                        Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
+                            .foregroundColor(isCompleted ? Color(hex: sampleColors[colorIndex]) : .secondary)
+                            .font(.system(size: 22, weight: .semibold))
+                    }
+                    
+                    // Title and due date if near
+                    VStack(alignment: .leading, spacing: 2) {
+                        // Title
+                        Text(sampleTitles[index % sampleTitles.count])
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(isCompleted ? .secondary : .primary)
+                            .strikethrough(isCompleted)
+                            .lineLimit(1)
+                        
+                        // Due date countdown if within 3 days
+                        if index % 5 <= 3 {
+                            Text(sampleDueSoon[index % sampleDueSoon.count])
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(index % sampleDueSoon.count == 2 ? .red : .orange)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Priority flag
+                    if index % 3 > 0 {
+                        Image(systemName: index % 3 == 2 ? "flag.fill" : "flag")
+                            .foregroundColor(sampleGradient(index)[0])
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                }
+                .padding(.top, 14)
+                .padding(.horizontal, 16)
+                .redacted(reason: .placeholder)
+                
+                // Show a snippet of the description if available
+                if index % 2 == 0 {  // Only show for some cards
+                    Text(sampleDesc[index % sampleDesc.count])
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .padding(.top, 6)
+                        .padding(.horizontal, 16)
+                        .padding(.leading, 46) // Align with title text
+                        .redacted(reason: .placeholder)
+                }
+                
+                // Custom divider with insets
+                Rectangle()
+                    .fill(colorScheme == .dark ? Color(.systemGray5) : Color(.systemGray5))
+                    .frame(height: 0.5)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 10)
+                
+                // Footer with metadata
+                HStack(spacing: 10) {
+                    // Due date chip
+                    if index % 4 != 3 {  // Skip for some to show variety
+                        HStack(spacing: 4) {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 11))
+                            Text(sampleDates[index % sampleDates.count], style: .date)
+                                .font(.system(size: 11, weight: .medium))
+                                .lineLimit(1)
+                        }
+                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.secondary)
+                        .padding(.vertical, 5)
+                        .padding(.horizontal, 8)
+                        .background(colorScheme == .dark ? Color.secondary.opacity(0.2) : Color.secondary.opacity(0.08))
+                        .cornerRadius(8)
+                    }
+                    
+                    // Time ago badge
+                    Text(sampleTimeAgo[index % sampleTimeAgo.count])
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : Color.secondary.opacity(0.8))
+                    
+                    Spacer()
+                    
+                    // Category badge
+                    let colorIndex = index % sampleColors.count
+                    let categoryColor = Color(hex: sampleColors[colorIndex])
+                    
+                    HStack(spacing: 5) {
+                        // Color dot
+                        Circle()
+                            .fill(categoryColor)
+                            .frame(width: 8, height: 8)
+                            .shadow(color: categoryColor.opacity(0.3), radius: 1, x: 0, y: 0)
+                        
+                        // Category name
+                        Text(sampleCategories[colorIndex])
+                            .font(.system(size: 12, weight: .medium))
+                            .lineLimit(1)
+                    }
+                    .foregroundColor(categoryColor.opacity(0.8))
+                    .padding(.vertical, 5)
+                    .padding(.horizontal, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(categoryColor.opacity(0.12))
+                            .shadow(color: categoryColor.opacity(0.1), radius: 1, x: 0, y: 1)
+                    )
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 14)
+                .redacted(reason: .placeholder)
             }
         }
+        .frame(height: index % 2 == 0 ? 136 : 116)  // Vary height based on description
+        .padding(.horizontal, 4)
+        .padding(.vertical, 4)
         .contentShape(Rectangle())
+        // Styling for completed tasks
+        .opacity(index % 3 == 0 ? 0.85 : 1.0)
+        // Slight scale effect on completed items
+        .scaleEffect(index % 3 == 0 ? 0.98 : 1.0)
+    }
+    
+    // Helper methods
+    private func sampleGradient(_ index: Int) -> [Color] {
+        switch index % 3 {
+        case 0:
+            return [Color.blue, Color.blue.opacity(0.7)]
+        case 1:
+            return [Color.orange, Color.orange.opacity(0.7)]
+        case 2:
+            return [Color.red, Color.red.opacity(0.7)]
+        default:
+            return [Color.blue, Color.blue.opacity(0.7)]
+        }
     }
 }
 

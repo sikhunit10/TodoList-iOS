@@ -58,4 +58,5 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .environmentObject(DataController.shared)
+        .environment(\.managedObjectContext, DataController.shared.container.viewContext)
 }

@@ -13,8 +13,9 @@ struct SettingsView: View {
     
     @State private var showingDeleteConfirmation = false
     @State private var showDeleteCompletedConfirmation = false
-    @State private var showingErrorAlert = false
-    @State private var errorMessage = ""
+    @State private var showingAlert = false
+    @State private var alertTitle = "Error"
+    @State private var alertMessage = ""
     
     @AppStorage("completedTasksVisible") private var completedTasksVisible = true
     
@@ -41,11 +42,11 @@ struct SettingsView: View {
             } message: {
                 Text("This will permanently delete all completed tasks. This action cannot be undone.")
             }
-            // Error alert
-            .alert("Error", isPresented: $showingErrorAlert) {
+            // Alert for errors or success messages
+            .alert(alertTitle, isPresented: $showingAlert) {
                 Button("OK", role: .cancel) { }
             } message: {
-                Text(errorMessage)
+                Text(alertMessage)
             }
     }
     
@@ -153,9 +154,15 @@ struct SettingsView: View {
             
             // Save changes
             dataController.save()
+            
+            // Show success message
+            alertTitle = "Success"
+            alertMessage = "All data has been successfully deleted."
+            showingAlert = true
         } catch {
-            errorMessage = "Failed to delete data: \(error.localizedDescription)"
-            showingErrorAlert = true
+            alertTitle = "Error"
+            alertMessage = "Failed to delete data: \(error.localizedDescription)"
+            showingAlert = true
         }
     }
     
@@ -164,8 +171,14 @@ struct SettingsView: View {
         let deletedCount = dataController.deleteAllCompletedTasks()
         
         if deletedCount == 0 {
-            errorMessage = "No completed tasks to delete."
-            showingErrorAlert = true
+            alertTitle = "Information"
+            alertMessage = "No completed tasks found to delete."
+            showingAlert = true
+        } else {
+            // Show a success message with count
+            alertTitle = "Success"
+            alertMessage = "\(deletedCount) completed \(deletedCount == 1 ? "task" : "tasks") successfully deleted."
+            showingAlert = true
         }
     }
 }
