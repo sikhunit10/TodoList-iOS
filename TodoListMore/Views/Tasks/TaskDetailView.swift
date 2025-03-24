@@ -189,8 +189,9 @@ struct TaskDetailView: View {
             NavigationStack {
                 if let taskId = task.id {
                     TaskFormView(mode: .edit(taskId.uuidString), onSave: {
-                        // Refresh task data from Core Data after edit
+                        // Refresh both the task and all context objects
                         viewContext.refresh(task, mergeChanges: true)
+                        viewContext.refreshAllObjects()
                     })
                 }
             }
@@ -230,5 +231,8 @@ struct TaskDetailView: View {
         task.isCompleted = !task.isCompleted
         task.dateModified = Date()
         try? viewContext.save()
+        
+        // Ensure the change is immediately visible in other views
+        viewContext.refreshAllObjects()
     }
 }

@@ -37,6 +37,17 @@ class DataController: ObservableObject {
         if container.viewContext.hasChanges {
             do {
                 try container.viewContext.save()
+                
+                // After successful save, ensure all UI elements have the most current data
+                objectWillChange.send()
+                
+                // Also refresh to ensure changes propagate to all views
+                container.viewContext.refreshAllObjects()
+                
+                // Add a small delay to ensure UI can update
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self.objectWillChange.send()
+                }
             } catch {
                 print("Error saving context: \(error.localizedDescription)")
                 // Just print the error since we removed the syncStatus

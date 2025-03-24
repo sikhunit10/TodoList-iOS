@@ -136,13 +136,19 @@ struct TaskListView: View {
         }
         .sheet(isPresented: $showingAddTask) {
             NavigationStack {
-                TaskFormView(mode: .add, onSave: { })
+                TaskFormView(mode: .add, onSave: {
+                    // Refresh the task list when a new task is added
+                    viewContext.refreshAllObjects()
+                })
             }
             .presentationDetents([.medium, .large])
         }
         .sheet(item: $selectedTaskId) { taskId in
             NavigationStack {
-                TaskFormView(mode: .edit(taskId), onSave: { })
+                TaskFormView(mode: .edit(taskId), onSave: {
+                    // Refresh the task list when task is updated
+                    viewContext.refreshAllObjects()
+                })
             }
             .presentationDetents([.medium, .large])
             .onDisappear {
@@ -160,6 +166,9 @@ struct TaskListView: View {
     // MARK: - Private Methods
     
     private func updateFetchRequest() {
+        // First refresh all objects to ensure we have the latest data
+        viewContext.refreshAllObjects()
+        
         // Build predicates based on current filter and search text
         var predicates: [NSPredicate] = []
         
@@ -214,6 +223,8 @@ struct TaskListView: View {
     private func deleteTask(_ task: Task) {
         withAnimation {
             dataController.delete(task)
+            // Ensure UI updates after deletion
+            updateFetchRequest()
         }
     }
     
@@ -222,6 +233,8 @@ struct TaskListView: View {
         
         withAnimation {
             dataController.toggleTaskCompletion(id: id)
+            // Ensure UI updates after toggling completion
+            updateFetchRequest()
         }
     }
 }
@@ -282,6 +295,9 @@ struct TaskRow: View {
                             // Call the toggle task method with animation
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 dataController.toggleTaskCompletion(id: id)
+                                // Force refresh to ensure UI updates
+                                task.managedObjectContext?.refresh(task, mergeChanges: true)
+                                task.managedObjectContext?.refreshAllObjects()
                             }
                         }
                     }) {
