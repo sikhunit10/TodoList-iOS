@@ -201,7 +201,15 @@ struct TaskListView: View {
             let calendar = Calendar.current
             let startOfDay = calendar.startOfDay(for: Date())
             let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-            predicates.append(NSPredicate(format: "dueDate >= %@ AND dueDate < %@", startOfDay as NSDate, endOfDay as NSDate))
+            
+            // Create a compound predicate for due date that includes:
+            // 1. Tasks due today (falls between start and end of today)
+            // 2. Tasks that don't have a due date set
+            let dueTodayPredicate = NSPredicate(format: "dueDate >= %@ AND dueDate <= %@", 
+                                               startOfDay as NSDate, 
+                                               endOfDay as NSDate)
+            
+            predicates.append(dueTodayPredicate)
             predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: false)))
         case .upcoming:
             let calendar = Calendar.current
