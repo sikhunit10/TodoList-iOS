@@ -63,20 +63,26 @@ struct TaskDetailView: View {
                 }
                 .accessibilityElement(children: .combine)
                 
-                if let category = task.category {
+                // Always show category (either actual category or "Uncategorized")
+                HStack {
+                    Label("Category", systemImage: "folder")
+                    Spacer()
                     HStack {
-                        Label("Category", systemImage: "folder")
-                        Spacer()
-                        HStack {
+                        if let category = task.category {
                             Circle()
                                 .fill(Color(hex: category.colorHex ?? "#CCCCCC"))
                                 .frame(width: 12, height: 12)
                             Text(category.name ?? "")
+                        } else {
+                            Circle()
+                                .fill(Color(hex: "#CCCCCC"))
+                                .frame(width: 12, height: 12)
+                            Text("Uncategorized")
                         }
-                        .foregroundColor(.secondary)
                     }
-                    .accessibilityElement(children: .combine)
+                    .foregroundColor(.secondary)
                 }
+                .accessibilityElement(children: .combine)
             }
             
             // Timestamps

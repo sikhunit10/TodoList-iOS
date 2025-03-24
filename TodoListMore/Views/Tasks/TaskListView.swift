@@ -278,6 +278,17 @@ struct TaskRow: View {
                         }
                         .font(.caption)
                         .foregroundColor(.secondary)
+                    } else {
+                        // Default styling for tasks without a category
+                        Label {
+                            Text("Uncategorized")
+                        } icon: {
+                            Circle()
+                                .fill(Color(hex: "#CCCCCC"))
+                                .frame(width: 8, height: 8)
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                     }
                 }
             }
