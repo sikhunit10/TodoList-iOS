@@ -114,9 +114,6 @@ struct TaskListView: View {
             }
             .listStyle(.plain)
             .background(Color(.systemGroupedBackground))
-            .refreshable {
-                loadTasks()
-            }
         }
         .searchable(text: $searchText, prompt: "Search tasks")
         .onChange(of: searchText) { _ in
