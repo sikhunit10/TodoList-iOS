@@ -11,6 +11,7 @@ import CoreData
 struct TaskFormView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var dataController: DataController
     
     // Form input fields
