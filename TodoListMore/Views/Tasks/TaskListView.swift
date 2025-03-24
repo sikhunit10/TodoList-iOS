@@ -257,7 +257,7 @@ struct TaskRow: View {
         // Category data
         let category = task.category
         let categoryName = category?.name ?? "Uncategorized"
-        let colorHex = category?.colorHex ?? "#CCCCCC"
+        let colorHex = category?.colorHex ?? "#5D4EFF"  // Vivid purple color instead of gray for better visibility
         let categoryColor = Color(hex: colorHex)
         
         // Get gradient based on priority

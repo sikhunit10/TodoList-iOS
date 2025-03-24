@@ -107,7 +107,7 @@ struct TaskDetailView: View {
                                 .bold()
                         } else {
                             Circle()
-                                .fill(Color(hex: "#CCCCCC"))
+                                .fill(Color(hex: "#5D4EFF"))
                                 .frame(width: 14, height: 14)
                             Text("Uncategorized")
                                 .bold()

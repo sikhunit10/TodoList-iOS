@@ -233,7 +233,7 @@ struct TaskFormView: View {
                                     } label: {
                                         HStack {
                                             Circle()
-                                                .fill(Color(hex: "#CCCCCC"))
+                                                .fill(Color(hex: "#5D4EFF"))
                                                 .frame(width: 18, height: 18)
                                             
                                             Text("None")
@@ -266,7 +266,7 @@ struct TaskFormView: View {
                                             ForEach(categories, id: \.self) { category in
                                                 let categoryId = category.value(forKey: "id") as? UUID
                                                 let name = category.value(forKey: "name") as? String ?? ""
-                                                let colorHex = category.value(forKey: "colorHex") as? String ?? "#CCCCCC"
+                                                let colorHex = category.value(forKey: "colorHex") as? String ?? "#5D4EFF"
                                                 
                                                 Button {
                                                     selectedCategoryId = categoryId
