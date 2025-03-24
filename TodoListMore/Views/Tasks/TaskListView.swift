@@ -225,7 +225,15 @@ struct TaskListView: View {
         
         // Update the fetch request with animation
         tasks.nsPredicate = fetchRequest.predicate
-        tasks.sortDescriptors = fetchRequest.sortDescriptors
+        // Convert NSSortDescriptor to SortDescriptor<Task>
+        let sortDescriptors: [SortDescriptor<Task>] = fetchRequest.sortDescriptors?.compactMap { nsSortDescriptor in
+            if let key = nsSortDescriptor.key {
+                return SortDescriptor<Task>(key, order: nsSortDescriptor.ascending ? .forward : .reverse)
+            }
+            return nil
+        } ?? []
+        
+        tasks.sortDescriptors = sortDescriptors
     }
     
     private func deleteTask(_ task: Task) {
