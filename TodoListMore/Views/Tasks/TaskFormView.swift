@@ -323,6 +323,24 @@ struct TaskFormView: View {
         }
     }
     
+    private func priorityColor(for value: Int16) -> Color {
+        switch value {
+        case 1: return .taskPriorityLow
+        case 2: return .taskPriorityMedium
+        case 3: return .taskPriorityHigh
+        default: return .blue
+        }
+    }
+    
+    private func priorityText(for value: Int16) -> String {
+        switch value {
+        case 1: return "Low"
+        case 2: return "Medium"
+        case 3: return "High"
+        default: return ""
+        }
+    }
+    
     // MARK: - Private Methods
     
     private func loadCategories() {
