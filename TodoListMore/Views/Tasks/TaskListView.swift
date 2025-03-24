@@ -16,12 +16,24 @@ struct TaskListView: View {
     @State private var searchText = ""
     @State private var selectedFilter: TaskFilter = .all
     @State private var selectedTaskId: String? = nil
-    @State private var isLoading = true
-    @State private var tasks: [NSManagedObject] = []
     @AppStorage("completedTasksVisible") private var completedTasksVisible = true
     
-    // For Core Data change notification
-    @State private var notificationToken: NSObjectProtocol? = nil
+    // Use FetchRequest to automatically update when data changes
+    @FetchRequest private var tasks: FetchedResults<Task>
+    
+    // Initialize with default fetch request
+    init() {
+        // Create a temporary fetch request (will be updated in .onChange)
+        let fetchRequest = NSFetchRequest<Task>(entityName: "Task")
+        fetchRequest.sortDescriptors = [
+            NSSortDescriptor(key: "isCompleted", ascending: true),
+            NSSortDescriptor(key: "dueDate", ascending: true),
+            NSSortDescriptor(key: "dateCreated", ascending: false)
+        ]
+        
+        // Initialize the fetch request
+        _tasks = FetchRequest(fetchRequest: fetchRequest)
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -35,19 +47,11 @@ struct TaskListView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
             .onChange(of: selectedFilter) { _ in
-                loadTasks()
+                updateFetchRequest()
             }
             
             List {
-                if isLoading {
-                    // Show placeholders while loading
-                    ForEach(0..<5) { index in
-                        TaskPlaceholderRow(index: index)
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                            .padding(.horizontal, 8)
-                    }
-                } else if tasks.isEmpty {
+                if tasks.isEmpty {
                     VStack(spacing: 20) {
                         Image(systemName: "checklist")
                             .font(.system(size: 60))
@@ -82,8 +86,8 @@ struct TaskListView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
                 } else {
-                    ForEach(tasks, id: \.self) { task in
-                        TaskRow(task: task, onTaskUpdated: loadTasks)
+                    ForEach(tasks) { task in
+                        TaskRow(task: task)
                             .listRowSeparator(.hidden)
                             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                             .padding(.horizontal, 8)
@@ -101,16 +105,13 @@ struct TaskListView: View {
                                         toggleTaskCompletion(task)
                                     }
                                 } label: {
-                                    let isCompleted = task.value(forKey: "isCompleted") as? Bool ?? false
-                                    Label(isCompleted ? "Mark Incomplete" : "Complete", 
-                                          systemImage: isCompleted ? "circle" : "checkmark.circle")
+                                    Label(task.isCompleted ? "Mark Incomplete" : "Complete", 
+                                          systemImage: task.isCompleted ? "circle" : "checkmark.circle")
                                         .tint(.green)
                                 }
                             }
                             .onTapGesture {
-                                if let id = task.value(forKey: "id") as? UUID {
-                                    selectedTaskId = id.uuidString
-                                }
+                                selectedTaskId = task.id?.uuidString
                             }
                     }
                 }
@@ -120,7 +121,7 @@ struct TaskListView: View {
         }
         .searchable(text: $searchText, prompt: "Search tasks")
         .onChange(of: searchText) { _ in
-            loadTasks()
+            updateFetchRequest()
         }
         .navigationTitle("Tasks")
         .navigationBarTitleDisplayMode(.large)
@@ -139,54 +140,32 @@ struct TaskListView: View {
         }
         .sheet(isPresented: $showingAddTask) {
             NavigationStack {
-                TaskFormView(mode: .add, onSave: {
-                    // Force reload on save
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        loadTasks()
-                    }
-                })
+                TaskFormView(mode: .add, onSave: { })
             }
             .presentationDetents([.medium, .large])
-            .onDisappear {
-                // Also load on disappear as a backup
-                loadTasks()
-            }
         }
         .sheet(item: $selectedTaskId) { taskId in
             NavigationStack {
-                TaskFormView(mode: .edit(taskId), onSave: {
-                    // Force reload on save with slight delay to ensure Core Data sync
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        loadTasks()
-                    }
-                })
+                TaskFormView(mode: .edit(taskId), onSave: { })
             }
             .presentationDetents([.medium, .large])
             .onDisappear {
-                // Clear selection and reload tasks
                 selectedTaskId = nil
-                loadTasks()
             }
         }
         .onAppear {
-            loadTasks()
-            registerForCoreDataChanges()
-        }
-        .onDisappear {
-            unregisterFromCoreDataChanges()
+            updateFetchRequest()
         }
         .onChange(of: completedTasksVisible) { _ in
-            loadTasks()
+            updateFetchRequest()
         }
     }
     
     // MARK: - Private Methods
     
-    private func loadTasks() {
-        isLoading = true
-        
-        let context = dataController.container.viewContext
-        let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "Task")
+    private func updateFetchRequest() {
+        // Create a new fetch request for tasks
+        let fetchRequest = NSFetchRequest<Task>(entityName: "Task")
         
         // Apply filters
         var predicates: [NSPredicate] = []
@@ -232,6 +211,7 @@ struct TaskListView: View {
             }
         }
         
+        // Set the predicate on the fetch request
         if !predicates.isEmpty {
             fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
         }
@@ -243,81 +223,45 @@ struct TaskListView: View {
             NSSortDescriptor(key: "dateCreated", ascending: false)
         ]
         
-        do {
-            tasks = try context.fetch(fetchRequest)
-            isLoading = false
-        } catch {
-            print("Error fetching tasks: \(error.localizedDescription)")
-            isLoading = false
-        }
+        // Update the fetch request with animation
+        tasks.nsPredicate = fetchRequest.predicate
+        tasks.sortDescriptors = fetchRequest.sortDescriptors
     }
     
-    private func deleteTask(_ task: NSManagedObject) {
+    private func deleteTask(_ task: Task) {
         withAnimation {
             dataController.delete(task)
-            loadTasks()
         }
     }
     
-    private func toggleTaskCompletion(_ task: NSManagedObject) {
-        guard let id = task.value(forKey: "id") as? UUID else { return }
+    private func toggleTaskCompletion(_ task: Task) {
+        guard let id = task.id else { return }
         
-        if dataController.toggleTaskCompletion(id: id) {
-            // Reload tasks to update the UI
-            loadTasks()
-        }
-    }
-    
-    // MARK: - Core Data Change Notifications
-    
-    private func registerForCoreDataChanges() {
-        // Remove any existing notification observer
-        unregisterFromCoreDataChanges()
-        
-        // Register for context did save notification
-        notificationToken = NotificationCenter.default.addObserver(
-            forName: NSManagedObjectContext.didSaveObjectsNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            // Only reload if the view is still active
-            guard let self = self else { return }
-            
-            // Reload with a slight delay to ensure Core Data has fully processed the changes
-            DispatchQueue.main.async {
-                self.loadTasks()
-            }
-        }
-    }
-    
-    private func unregisterFromCoreDataChanges() {
-        if let token = notificationToken {
-            NotificationCenter.default.removeObserver(token)
-            notificationToken = nil
+        withAnimation {
+            dataController.toggleTaskCompletion(id: id)
         }
     }
 }
 
 // Task row view
 struct TaskRow: View {
-    let task: NSManagedObject
+    let task: Task
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var dataController: DataController
-    var onTaskUpdated: () -> Void = {}
     
     var body: some View {
-        // Get task properties
-        let isCompleted = task.value(forKey: "isCompleted") as? Bool ?? false
-        let title = task.value(forKey: "title") as? String ?? "Untitled Task"
-        let description = task.value(forKey: "taskDescription") as? String ?? ""
-        let priority = task.value(forKey: "priority") as? Int16 ?? 1
-        let dueDate = task.value(forKey: "dueDate") as? Date
-        let dateCreated = task.value(forKey: "dateCreated") as? Date
+        // Get task properties directly using the entity properties
+        let isCompleted = task.isCompleted
+        let title = task.title ?? "Untitled Task"
+        let description = task.taskDescription ?? ""
+        let priority = task.priority
+        let dueDate = task.dueDate
+        let dateCreated = task.dateCreated
         
         // Category data
-        let category = task.value(forKey: "category") as? NSManagedObject
-        let categoryName = category?.value(forKey: "name") as? String ?? "Uncategorized"
-        let colorHex = category?.value(forKey: "colorHex") as? String ?? "#CCCCCC"
+        let category = task.category
+        let categoryName = category?.name ?? "Uncategorized"
+        let colorHex = category?.colorHex ?? "#CCCCCC"
         let categoryColor = Color(hex: colorHex)
         
         // Get gradient based on priority
@@ -351,15 +295,10 @@ struct TaskRow: View {
                 HStack(alignment: .center, spacing: 14) {
                     // Checkbox with animated press effect
                     Button(action: {
-                        if let id = task.value(forKey: "id") as? UUID {
+                        if let id = task.id {
                             // Call the toggle task method with animation
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                if dataController.toggleTaskCompletion(id: id) {
-                                    // Reload the task list after a short delay to show animation
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                        onTaskUpdated()
-                                    }
-                                }
+                                dataController.toggleTaskCompletion(id: id)
                             }
                         }
                     }) {
