@@ -113,11 +113,9 @@ struct TaskListView: View {
                     VStack(spacing: 8) { // Increased spacing between cards for better visual separation
                         if tasks.isEmpty {
                             EmptyTaskView(onAddTask: { 
-                                // If we're in completed tab, switch to All tab before showing the add task form
-                                // since new tasks are always active/incomplete
-                                if selectedFilter == .completed {
-                                    selectedFilter = .all
-                                }
+                                // Switch to the appropriate tab before showing the add task form
+                                // to ensure the new task will be visible after creation
+                                switchToAppropriateTabForNewTask()
                                 showingAddTask = true 
                             })
                                 .padding(.horizontal, 16)
@@ -225,6 +223,8 @@ struct TaskListView: View {
             // Hide when in edit mode
             if !isEditMode {
                 FloatingAddButton {
+                    // Switch to the appropriate tab before showing the add task form
+                    switchToAppropriateTabForNewTask()
                     showingAddTask = true
                 }
             }
@@ -258,11 +258,9 @@ struct TaskListView: View {
                 TaskFormView(mode: .add, onSave: {
                     viewContext.refreshAllObjects()
                     
-                    // If we're in completed tab, switch to All tab after adding a new task
-                    // since new tasks are always active/incomplete
-                    if selectedFilter == .completed {
-                        selectedFilter = .all
-                    }
+                    // Switch to the appropriate tab after adding a new task
+                    // to ensure the new task will be visible after creation
+                    switchToAppropriateTabForNewTask()
                 })
             }
             .presentationDetents([.medium, .large])
@@ -393,6 +391,32 @@ struct TaskListView: View {
     }
     
     // MARK: - Private Methods
+    
+    // Determine if a new task would be visible in the current filter tab
+    private func isNewTaskVisibleInCurrentTab() -> Bool {
+        switch selectedFilter {
+        case .all:
+            return true
+        case .active:
+            return true // New tasks are always active
+        case .completed:
+            return false // New tasks are never completed
+        case .today:
+            // New tasks are visible in Today tab only if due date is set to today
+            let today = Calendar.current.startOfDay(for: Date())
+            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)!
+            return false // Default to false since we can't predict if user will set due date to today
+        case .upcoming:
+            return false // Default to false since we can't predict if user will set future due date
+        }
+    }
+    
+    // Switch to appropriate tab for new task if current tab wouldn't show it
+    private func switchToAppropriateTabForNewTask() {
+        if !isNewTaskVisibleInCurrentTab() {
+            selectedFilter = .all
+        }
+    }
     
     private func updateFetchRequest() {
         var predicates: [NSPredicate] = []
