@@ -80,7 +80,7 @@ struct TaskListView: View {
                 }
             }
             .listStyle(.plain)
-            .background(Color(.systemGroupedBackground))
+            .background(Color.white)
         }
         .searchable(text: $searchText, prompt: "Search tasks")
         .onChange(of: searchText) { _ in
