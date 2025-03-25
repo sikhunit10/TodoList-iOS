@@ -80,7 +80,7 @@ struct TaskListView: View {
                     
                     // Add extra space at the bottom
                     Spacer()
-                        .frame(height: 80)
+                        .frame(height: 20)
                         .listRowSeparator(.hidden)
                 }
             }
