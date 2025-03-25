@@ -67,8 +67,8 @@ struct TaskCardView: View {
                     gradientColors: gradientColors
                 )
                 
-                // Spacer instead of divider for cleaner look
-                Spacer()
+                // Visual spacer with no lines
+                Color.clear
                     .frame(height: 22)
                 
                 // Footer with metadata
