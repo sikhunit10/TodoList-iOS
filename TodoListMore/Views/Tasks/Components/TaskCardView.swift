@@ -67,13 +67,9 @@ struct TaskCardView: View {
                     gradientColors: gradientColors
                 )
                 
-                // Custom divider with insets
-                Rectangle()
-                    .fill(Color(.systemGray5))
-                    .frame(height: 0.5)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .padding(.bottom, 10)
+                // Spacer instead of divider for cleaner look
+                Spacer()
+                    .frame(height: 22)
                 
                 // Footer with metadata
                 TaskCardFooterView(

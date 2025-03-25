@@ -114,12 +114,14 @@ struct TaskListView: View {
                         EmptyTaskView(onAddTask: { showingAddTask = true })
                             .listRowSeparator(.hidden)
                             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                            .listRowBackground(Color.clear)
                     } else {
                         ForEach(tasks) { task in
                             ZStack {
                                 // Task card with iOS-native style in edit mode
                                 TaskCardView(task: task)
                                     .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
                                     .listRowInsets(EdgeInsets(
                                         top: 6, 
                                         // Standard leading edge margin
@@ -211,6 +213,8 @@ struct TaskListView: View {
                     }
                 }
                 .listStyle(.plain)
+                // Apply custom style to completely remove list separators
+                .environment(\.defaultMinListRowHeight, 1)
                 .background(Color.white)
             }
             
