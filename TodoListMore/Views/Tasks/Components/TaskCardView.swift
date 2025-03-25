@@ -69,7 +69,7 @@ struct TaskCardView: View {
                 
                 // Visual spacer with no lines
                 Color.clear
-                    .frame(height: 22)
+                    .frame(height: 16)
                 
                 // Footer with metadata
                 TaskCardFooterView(
@@ -80,9 +80,9 @@ struct TaskCardView: View {
                 )
             }
         }
-        .frame(height: description.isEmpty ? 116 : 136)
+        .frame(height: description.isEmpty ? 110 : 130)
         .padding(.horizontal, 4)
-        .padding(.vertical, 4)
+        .padding(.vertical, 0)
         .contentShape(Rectangle())
         // Styling for completed tasks
         .opacity(isCompleted ? 0.85 : 1.0)

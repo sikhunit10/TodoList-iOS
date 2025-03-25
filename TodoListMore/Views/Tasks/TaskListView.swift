@@ -110,7 +110,7 @@ struct TaskListView: View {
                 
                 // Task ScrollView with custom VStack instead of List to avoid separator issues
                 ScrollView {
-                    VStack(spacing: 0) {
+                    VStack(spacing: -4) { // Negative spacing to bring cards closer together
                         if tasks.isEmpty {
                             EmptyTaskView(onAddTask: { showingAddTask = true })
                                 .padding(.horizontal, 16)
@@ -121,7 +121,7 @@ struct TaskListView: View {
                                     // Task card with iOS-native style in edit mode
                                     TaskCardView(task: task)
                                         .padding(.horizontal, 16)
-                                        .padding(.vertical, 6)
+                                        .padding(.vertical, 2)
                                         // Standard iOS behavior - no scaling effects
                                         .opacity(selectedTaskIds.contains(task.id ?? UUID()) ? 1.0 : 1.0)
                                     
