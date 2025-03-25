@@ -112,7 +112,14 @@ struct TaskListView: View {
                 ScrollView {
                     VStack(spacing: 8) { // Increased spacing between cards for better visual separation
                         if tasks.isEmpty {
-                            EmptyTaskView(onAddTask: { showingAddTask = true })
+                            EmptyTaskView(onAddTask: { 
+                                // If we're in completed tab, switch to All tab before showing the add task form
+                                // since new tasks are always active/incomplete
+                                if selectedFilter == .completed {
+                                    selectedFilter = .all
+                                }
+                                showingAddTask = true 
+                            })
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
                         } else {
@@ -250,6 +257,12 @@ struct TaskListView: View {
             NavigationStack {
                 TaskFormView(mode: .add, onSave: {
                     viewContext.refreshAllObjects()
+                    
+                    // If we're in completed tab, switch to All tab after adding a new task
+                    // since new tasks are always active/incomplete
+                    if selectedFilter == .completed {
+                        selectedFilter = .all
+                    }
                 })
             }
             .presentationDetents([.medium, .large])
