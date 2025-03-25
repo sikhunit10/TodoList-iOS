@@ -32,80 +32,82 @@ struct TaskListView: View {
     ) private var tasks: FetchedResults<Task>
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Filter picker
-            Picker("Filter", selection: $selectedFilter) {
-                ForEach(TaskFilter.allCases) { filter in
-                    Text(filter.name).tag(filter)
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                // Modern Filter Selector
+                VStack(spacing: 12) {
+                    // Custom animated segment control with nice visuals
+                    SegmentedFilterView(selectedFilter: $selectedFilter)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, 4)
                 }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .onChange(of: selectedFilter) { _ in
-                updateFetchRequest()
+                .background(Color(UIColor.systemBackground))
+                .onChange(of: selectedFilter) { _ in
+                    updateFetchRequest()
+                }
+                
+                // Task List with improved spacing
+                List {
+                    if tasks.isEmpty {
+                        EmptyTaskView(onAddTask: { showingAddTask = true })
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    } else {
+                        ForEach(tasks) { task in
+                            TaskCardView(task: task)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) {
+                                        deleteTask(task)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                                .swipeActions(edge: .leading) {
+                                    Button {
+                                        withAnimation {
+                                            toggleTaskCompletion(task)
+                                        }
+                                    } label: {
+                                        Label(task.isCompleted ? "Mark Incomplete" : "Complete", 
+                                              systemImage: task.isCompleted ? "circle" : "checkmark.circle.fill")
+                                            .tint(.green)
+                                    }
+                                }
+                                .onTapGesture {
+                                    selectedTaskId = task.id?.uuidString
+                                }
+                        }
+                        
+                        // Add consistent space at the bottom
+                        Spacer()
+                            .frame(height: 20)
+                            .listRowSeparator(.hidden)
+                    }
+                }
+                .listStyle(.plain)
+                .background(Color(UIColor.systemBackground))
             }
             
-            List {
-                if tasks.isEmpty {
-                    EmptyTaskView(onAddTask: { showingAddTask = true })
-                } else {
-                    ForEach(tasks) { task in
-                        TaskCardView(task: task)
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                            .padding(.horizontal, 8)
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    deleteTask(task)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                            .swipeActions(edge: .leading) {
-                                Button {
-                                    withAnimation {
-                                        toggleTaskCompletion(task)
-                                    }
-                                } label: {
-                                    Label(task.isCompleted ? "Mark Incomplete" : "Complete", 
-                                          systemImage: task.isCompleted ? "circle" : "checkmark.circle")
-                                        .tint(.green)
-                                }
-                            }
-                            .onTapGesture {
-                                selectedTaskId = task.id?.uuidString
-                            }
-                    }
-                    
-                    // Add extra space at the bottom
-                    Spacer()
-                        .frame(height: 20)
-                        .listRowSeparator(.hidden)
-                }
+            // Floating action button
+            FloatingAddButton {
+                showingAddTask = true
             }
-            .listStyle(.plain)
-            .background(Color.white)
+            .padding(.bottom, 16)
         }
         .searchable(text: $searchText, prompt: "Search tasks")
         .onChange(of: searchText) { _ in
             updateFetchRequest()
         }
-        .navigationTitle("Tasks")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 EditButton()
             }
-            
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    showingAddTask = true
-                } label: {
-                    Image(systemName: "plus")
-                }
-            }
         }
+        .background(Color(UIColor.systemBackground))
         .sheet(isPresented: $showingAddTask) {
             NavigationStack {
                 TaskFormView(mode: .add, onSave: {
@@ -130,6 +132,81 @@ struct TaskListView: View {
         }
         .onChange(of: completedTasksVisible) { _ in
             updateFetchRequest()
+        }
+    }
+    
+    // Custom Segmented Control
+    struct SegmentedFilterView: View {
+        @Binding var selectedFilter: TaskFilter
+        @Environment(\.colorScheme) private var colorScheme
+        
+        private let accentColor = Color(hex: "#5D4EFF")
+        private let padding: CGFloat = 12
+        
+        var body: some View {
+            VStack(spacing: 4) {
+                HStack(spacing: 20) {
+                    ForEach(TaskFilter.allCases) { filter in
+                        Button(action: {
+                            withAnimation(.spring(dampingFraction: 0.7)) {
+                                selectedFilter = filter
+                            }
+                        }) {
+                            VStack(spacing: 6) {
+                                Text(filter.name)
+                                    .fontWeight(selectedFilter == filter ? .semibold : .medium)
+                                    .foregroundColor(selectedFilter == filter ? accentColor : .gray)
+                                    .padding(.horizontal, padding)
+                                
+                                // Indicator line
+                                if selectedFilter == filter {
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(accentColor)
+                                        .frame(height: 3)
+                                        .matchedGeometryEffect(id: "underline", in: namespace)
+                                        .padding(.horizontal, padding / 2)
+                                } else {
+                                    Rectangle()
+                                        .fill(Color.clear)
+                                        .frame(height: 3)
+                                        .padding(.horizontal, padding / 2)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.top, 4)
+                
+                Divider()
+                    .padding(.top, 2)
+            }
+        }
+        
+        @Namespace private var namespace
+    }
+    
+    // Floating Action Button
+    struct FloatingAddButton: View {
+        var action: () -> Void
+        
+        var body: some View {
+            Button(action: action) {
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: "#5D4EFF"))
+                        .frame(width: 58, height: 58)
+                        .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 2)
+                    
+                    Image(systemName: "plus")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+            }
+            .padding(.trailing, 24)
+            .padding(.bottom, 24)
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
     
