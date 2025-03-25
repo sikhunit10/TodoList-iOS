@@ -110,14 +110,14 @@ struct TaskListView: View {
                 
                 // Task ScrollView with custom VStack instead of List to avoid separator issues
                 ScrollView {
-                    VStack(spacing: 4) { // Small positive spacing between cards
+                    VStack(spacing: 8) { // Increased spacing between cards for better visual separation
                         if tasks.isEmpty {
                             EmptyTaskView(onAddTask: { showingAddTask = true })
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
                         } else {
                             // Add top padding for first card
-                            Color.clear.frame(height: 4)
+                            Color.clear.frame(height: 6)
                             
                             ForEach(tasks) { task in
                                 ZStack {
@@ -202,7 +202,7 @@ struct TaskListView: View {
                             }
                             
                             // Add bottom padding for last card
-                            Color.clear.frame(height: 4)
+                            Color.clear.frame(height: 6)
                             
                             // Add consistent space at the bottom for floating button
                             Spacer()
