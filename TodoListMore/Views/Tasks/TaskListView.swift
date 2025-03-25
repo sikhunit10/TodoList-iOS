@@ -110,18 +110,21 @@ struct TaskListView: View {
                 
                 // Task ScrollView with custom VStack instead of List to avoid separator issues
                 ScrollView {
-                    VStack(spacing: -4) { // Negative spacing to bring cards closer together
+                    VStack(spacing: 4) { // Small positive spacing between cards
                         if tasks.isEmpty {
                             EmptyTaskView(onAddTask: { showingAddTask = true })
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
                         } else {
+                            // Add top padding for first card
+                            Color.clear.frame(height: 4)
+                            
                             ForEach(tasks) { task in
                                 ZStack {
                                     // Task card with iOS-native style in edit mode
                                     TaskCardView(task: task)
                                         .padding(.horizontal, 16)
-                                        .padding(.vertical, 2)
+                                        .padding(.vertical, 0)
                                         // Standard iOS behavior - no scaling effects
                                         .opacity(selectedTaskIds.contains(task.id ?? UUID()) ? 1.0 : 1.0)
                                     
@@ -198,9 +201,12 @@ struct TaskListView: View {
                                 .padding(.vertical, 0)
                             }
                             
-                            // Add consistent space at the bottom
+                            // Add bottom padding for last card
+                            Color.clear.frame(height: 4)
+                            
+                            // Add consistent space at the bottom for floating button
                             Spacer()
-                                .frame(height: 80)
+                                .frame(height: 76)
                         }
                     }
                     .padding(.vertical, 0)
