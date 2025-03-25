@@ -77,6 +77,11 @@ struct TaskListView: View {
                                 selectedTaskId = task.id?.uuidString
                             }
                     }
+                    
+                    // Add extra space at the bottom
+                    Spacer()
+                        .frame(height: 80)
+                        .listRowSeparator(.hidden)
                 }
             }
             .listStyle(.plain)
