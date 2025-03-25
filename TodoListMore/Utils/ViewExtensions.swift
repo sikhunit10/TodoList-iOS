@@ -28,3 +28,10 @@ struct RoundedCorner: Shape {
 extension String: Identifiable {
     public var id: String { self }
 }
+
+// Button style with bounce animation for better feedback
+extension ButtonStyle where Self == ScaleButtonStyle {
+    static var scale: ScaleButtonStyle {
+        return ScaleButtonStyle()
+    }
+}

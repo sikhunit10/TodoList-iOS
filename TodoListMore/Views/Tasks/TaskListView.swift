@@ -32,20 +32,18 @@ struct TaskListView: View {
     ) private var tasks: FetchedResults<Task>
     
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             VStack(spacing: 0) {
                 // Modern Filter Selector
-                VStack(spacing: 12) {
-                    // Custom animated segment control with nice visuals
-                    SegmentedFilterView(selectedFilter: $selectedFilter)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .padding(.bottom, 4)
-                }
-                .background(Color(UIColor.systemBackground))
-                .onChange(of: selectedFilter) { _ in
-                    updateFetchRequest()
-                }
+                // Custom animated segment control with nice visuals
+                SegmentedFilterView(selectedFilter: $selectedFilter)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 0)
+                    .padding(.bottom, 0)
+                    .background(Color(UIColor.systemBackground))
+                    .onChange(of: selectedFilter) { _ in
+                        updateFetchRequest()
+                    }
                 
                 // Task List with improved spacing
                 List {
@@ -83,7 +81,7 @@ struct TaskListView: View {
                         
                         // Add consistent space at the bottom
                         Spacer()
-                            .frame(height: 20)
+                            .frame(height: 80)
                             .listRowSeparator(.hidden)
                     }
                 }
@@ -91,17 +89,16 @@ struct TaskListView: View {
                 .background(Color(UIColor.systemBackground))
             }
             
-            // Floating action button
+            // Floating action button (positioned with its own container)
             FloatingAddButton {
                 showingAddTask = true
             }
-            .padding(.bottom, 16)
         }
         .searchable(text: $searchText, prompt: "Search tasks")
         .onChange(of: searchText) { _ in
             updateFetchRequest()
         }
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 EditButton()
@@ -135,78 +132,109 @@ struct TaskListView: View {
         }
     }
     
-    // Custom Segmented Control
+    // Custom Segmented Control (Simplified)
     struct SegmentedFilterView: View {
         @Binding var selectedFilter: TaskFilter
         @Environment(\.colorScheme) private var colorScheme
+        @Namespace private var namespace
         
         private let accentColor = Color(hex: "#5D4EFF")
-        private let padding: CGFloat = 12
         
         var body: some View {
-            VStack(spacing: 4) {
-                HStack(spacing: 20) {
-                    ForEach(TaskFilter.allCases) { filter in
-                        Button(action: {
-                            withAnimation(.spring(dampingFraction: 0.7)) {
-                                selectedFilter = filter
-                            }
-                        }) {
-                            VStack(spacing: 6) {
-                                Text(filter.name)
-                                    .fontWeight(selectedFilter == filter ? .semibold : .medium)
-                                    .foregroundColor(selectedFilter == filter ? accentColor : .gray)
-                                    .padding(.horizontal, padding)
-                                
-                                // Indicator line
-                                if selectedFilter == filter {
-                                    RoundedRectangle(cornerRadius: 2)
-                                        .fill(accentColor)
-                                        .frame(height: 3)
-                                        .matchedGeometryEffect(id: "underline", in: namespace)
-                                        .padding(.horizontal, padding / 2)
-                                } else {
-                                    Rectangle()
-                                        .fill(Color.clear)
-                                        .frame(height: 3)
-                                        .padding(.horizontal, padding / 2)
+            VStack(spacing: 0) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 20) {
+                        ForEach(TaskFilter.allCases) { filter in
+                            FilterButton(
+                                filter: filter,
+                                isSelected: selectedFilter == filter,
+                                accentColor: accentColor,
+                                namespace: namespace,
+                                action: {
+                                    withAnimation(.spring(dampingFraction: 0.7)) {
+                                        selectedFilter = filter
+                                    }
                                 }
-                            }
+                            )
                         }
-                        .buttonStyle(.plain)
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 2)
                 }
-                .padding(.horizontal, 8)
-                .padding(.top, 4)
                 
                 Divider()
-                    .padding(.top, 2)
             }
         }
+    }
+    
+    // Extracted subview to simplify the SegmentedFilterView
+    struct FilterButton: View {
+        let filter: TaskFilter
+        let isSelected: Bool
+        let accentColor: Color
+        var namespace: Namespace.ID
+        let action: () -> Void
         
-        @Namespace private var namespace
+        var body: some View {
+            Button(action: action) {
+                VStack(spacing: 4) {
+                    Text(filter.name)
+                        .font(.system(size: 14))
+                        .fontWeight(isSelected ? .semibold : .medium)
+                        .foregroundColor(isSelected ? accentColor : .gray)
+                        .fixedSize(horizontal: true, vertical: false)
+                    
+                    // Indicator line
+                    ZStack {
+                        if isSelected {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(accentColor)
+                                .frame(height: 2)
+                                .frame(width: 40)
+                                .matchedGeometryEffect(id: "underline", in: namespace)
+                        } else {
+                            Rectangle()
+                                .fill(Color.clear)
+                                .frame(height: 2)
+                                .frame(width: 40)
+                        }
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
     }
     
     // Floating Action Button
     struct FloatingAddButton: View {
         var action: () -> Void
+        @Environment(\.colorScheme) private var colorScheme
         
         var body: some View {
-            Button(action: action) {
-                ZStack {
-                    Circle()
-                        .fill(Color(hex: "#5D4EFF"))
-                        .frame(width: 58, height: 58)
-                        .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 2)
+            VStack {
+                Spacer()
+                
+                HStack {
+                    Spacer()
                     
-                    Image(systemName: "plus")
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundColor(.white)
+                    Button(action: action) {
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: "#5D4EFF"))
+                                .frame(width: 62, height: 62)
+                                .shadow(color: Color(hex: "#5D4EFF").opacity(colorScheme == .dark ? 0.3 : 0.4), 
+                                        radius: 8, x: 0, y: 4)
+                            
+                            Image(systemName: "plus")
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .buttonStyle(ScaleButtonStyle())
+                    .padding(.trailing, 24)
+                    .padding(.bottom, 20)
                 }
             }
-            .padding(.trailing, 24)
-            .padding(.bottom, 24)
-            .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
     

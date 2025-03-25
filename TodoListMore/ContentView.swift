@@ -23,7 +23,7 @@ struct ContentView: View {
             NavigationStack {
                 TaskListView()
                     .navigationTitle("Tasks")
-                    .navigationBarTitleDisplayMode(.large)
+                    .navigationBarTitleDisplayMode(.inline)
             }
             .tabItem {
                 Label("Tasks", systemImage: "checklist.checked")
@@ -33,7 +33,7 @@ struct ContentView: View {
             NavigationStack {
                 CategoryListView()
                     .navigationTitle("Categories")
-                    .navigationBarTitleDisplayMode(.large)
+                    .navigationBarTitleDisplayMode(.inline)
             }
             .tabItem {
                 Label("Categories", systemImage: "folder.fill")
@@ -43,7 +43,7 @@ struct ContentView: View {
             NavigationStack {
                 SettingsView()
                     .navigationTitle("Settings")
-                    .navigationBarTitleDisplayMode(.large)
+                    .navigationBarTitleDisplayMode(.inline)
             }
             .tabItem {
                 Label("Settings", systemImage: "gearshape.fill")
@@ -68,14 +68,36 @@ struct ContentView: View {
             if #available(iOS 15.0, *) {
                 UITabBar.appearance().scrollEdgeAppearance = appearance
                 
-                // Enhance navigation bar appearance
+                // Create a more compact navigation bar appearance
                 let navigationAppearance = UINavigationBarAppearance()
                 navigationAppearance.configureWithOpaqueBackground()
                 navigationAppearance.backgroundColor = UIColor.systemBackground
                 navigationAppearance.shadowColor = .clear
                 
+                // Reduce title size and make it more compact
+                let smallerTitleTextAttributes = [
+                    NSAttributedString.Key.font: UIFont.systemFont(ofSize: 20, weight: .bold)
+                ]
+                navigationAppearance.largeTitleTextAttributes = smallerTitleTextAttributes
+                
+                // Make regular title smaller too
+                let smallerRegularTitleTextAttributes = [
+                    NSAttributedString.Key.font: UIFont.systemFont(ofSize: 16, weight: .semibold)
+                ]
+                navigationAppearance.titleTextAttributes = smallerRegularTitleTextAttributes
+                
+                // Apply more compact appearance
                 UINavigationBar.appearance().standardAppearance = navigationAppearance
                 UINavigationBar.appearance().scrollEdgeAppearance = navigationAppearance
+                UINavigationBar.appearance().compactAppearance = navigationAppearance
+                
+                // Reduce content insets
+                UINavigationBar.appearance().layoutMargins.top = 0
+                UINavigationBar.appearance().layoutMargins.bottom = 0
+                
+                // Make the search bar more compact
+                UITextField.appearance(whenContainedInInstancesOf: [UISearchBar.self]).defaultTextAttributes =
+                    [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 14)]
             }
         }
     }
