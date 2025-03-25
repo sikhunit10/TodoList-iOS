@@ -53,6 +53,7 @@ struct TaskListView: View {
                 } else {
                     // iOS-native edit mode header
                     VStack(spacing: 0) {
+                        // Keeping the top divider as it's needed to separate the edit mode header from navigation bar
                         Divider()
                         
                         HStack {
@@ -102,7 +103,7 @@ struct TaskListView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                         
-                        Divider()
+                        // Removed the bottom divider that was causing an unwanted line
                     }
                     .background(Color.white)
                 }
@@ -302,7 +303,7 @@ struct TaskListView: View {
                     .padding(.vertical, 2)
                 }
                 
-                Divider()
+                // Removed the Divider() that was causing the unwanted line
             }
         }
     }
@@ -324,7 +325,7 @@ struct TaskListView: View {
                         .foregroundColor(isSelected ? accentColor : .gray)
                         .fixedSize(horizontal: true, vertical: false)
                     
-                    // Indicator line
+                    // Indicator line - only visible when selected
                     ZStack {
                         if isSelected {
                             RoundedRectangle(cornerRadius: 2)
@@ -333,8 +334,8 @@ struct TaskListView: View {
                                 .frame(width: 40)
                                 .matchedGeometryEffect(id: "underline", in: namespace)
                         } else {
-                            Rectangle()
-                                .fill(Color.clear)
+                            // Keeping this empty spacer for proper alignment
+                            Color.clear
                                 .frame(height: 2)
                                 .frame(width: 40)
                         }
