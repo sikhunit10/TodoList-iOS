@@ -23,7 +23,12 @@ struct SettingsView: View {
         SettingsListContent()
             .listStyle(.insetGrouped)
             .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                // Empty toolbar to maintain consistent appearance
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Spacer()
+                }
+            }
             // Delete all data confirmation
             .alert("Delete All Data", isPresented: $showingDeleteConfirmation) {
                 Button("Cancel", role: .cancel) { }

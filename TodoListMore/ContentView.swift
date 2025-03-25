@@ -20,30 +20,40 @@ struct ContentView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
+            // Tasks tab - white navigation bar with inline title
             NavigationStack {
                 TaskListView()
                     .navigationTitle("Tasks")
                     .navigationBarTitleDisplayMode(.inline)
+                    .toolbarBackground(.visible, for: .navigationBar)
+                    .toolbarBackground(Color.white, for: .navigationBar) // Force white background
             }
+            .background(Color.white) // Force white for any transparent areas
             .tabItem {
                 Label("Tasks", systemImage: "checklist.checked")
             }
             .tag(0)
             
+            // Categories tab - gray navigation bar with large title
             NavigationStack {
                 CategoryListView()
                     .navigationTitle("Categories")
-                    .navigationBarTitleDisplayMode(.inline)
+                    .navigationBarTitleDisplayMode(.large)
+                    .toolbarBackground(.visible, for: .navigationBar)
+                    .toolbarBackground(Color(.systemGroupedBackground), for: .navigationBar)
             }
             .tabItem {
                 Label("Categories", systemImage: "folder.fill")
             }
             .tag(1)
             
+            // Settings tab - gray navigation bar with large title
             NavigationStack {
                 SettingsView()
                     .navigationTitle("Settings")
-                    .navigationBarTitleDisplayMode(.inline)
+                    .navigationBarTitleDisplayMode(.large)
+                    .toolbarBackground(.visible, for: .navigationBar)
+                    .toolbarBackground(Color(.systemGroupedBackground), for: .navigationBar)
             }
             .tabItem {
                 Label("Settings", systemImage: "gearshape.fill")
@@ -69,31 +79,54 @@ struct ContentView: View {
                 UITabBar.appearance().scrollEdgeAppearance = appearance
                 
                 // Create a more compact navigation bar appearance
-                let navigationAppearance = UINavigationBarAppearance()
-                navigationAppearance.configureWithOpaqueBackground()
-                navigationAppearance.backgroundColor = UIColor.systemBackground
-                navigationAppearance.shadowColor = .clear
+                // Create two distinct navigation bar appearances
                 
-                // Reduce title size and make it more compact
-                let smallerTitleTextAttributes = [
-                    NSAttributedString.Key.font: UIFont.systemFont(ofSize: 20, weight: .bold)
+                // 1. Task list appearance - white background, consistent height
+                let taskNavigationAppearance = UINavigationBarAppearance()
+                taskNavigationAppearance.configureWithOpaqueBackground()
+                taskNavigationAppearance.backgroundColor = UIColor.systemBackground // White background
+                taskNavigationAppearance.shadowColor = .clear
+                taskNavigationAppearance.shadowImage = UIImage() // Remove bottom line
+                
+                // 2. Categories and Settings appearance - gray background with large titles
+                let groupedNavigationAppearance = UINavigationBarAppearance()
+                groupedNavigationAppearance.configureWithOpaqueBackground()
+                groupedNavigationAppearance.backgroundColor = UIColor.systemGroupedBackground // Gray background
+                groupedNavigationAppearance.shadowColor = .clear
+                groupedNavigationAppearance.shadowImage = UIImage() // Remove bottom line
+                
+                // Set font sizes for consistent height
+                let regularTitleTextAttributes = [
+                    NSAttributedString.Key.font: UIFont.systemFont(ofSize: 17, weight: .semibold)
                 ]
-                navigationAppearance.largeTitleTextAttributes = smallerTitleTextAttributes
                 
-                // Make regular title smaller too
-                let smallerRegularTitleTextAttributes = [
-                    NSAttributedString.Key.font: UIFont.systemFont(ofSize: 16, weight: .semibold)
+                let largeTitleTextAttributes = [
+                    NSAttributedString.Key.font: UIFont.systemFont(ofSize: 34, weight: .bold)
                 ]
-                navigationAppearance.titleTextAttributes = smallerRegularTitleTextAttributes
                 
-                // Apply more compact appearance
-                UINavigationBar.appearance().standardAppearance = navigationAppearance
-                UINavigationBar.appearance().scrollEdgeAppearance = navigationAppearance
-                UINavigationBar.appearance().compactAppearance = navigationAppearance
+                // Apply font settings to both appearances
+                taskNavigationAppearance.titleTextAttributes = regularTitleTextAttributes
+                groupedNavigationAppearance.titleTextAttributes = regularTitleTextAttributes
                 
-                // Reduce content insets
-                UINavigationBar.appearance().layoutMargins.top = 0
-                UINavigationBar.appearance().layoutMargins.bottom = 0
+                taskNavigationAppearance.largeTitleTextAttributes = largeTitleTextAttributes
+                groupedNavigationAppearance.largeTitleTextAttributes = largeTitleTextAttributes
+                
+                // Set default appearances for fallback
+                UINavigationBar.appearance().standardAppearance = taskNavigationAppearance
+                UINavigationBar.appearance().compactAppearance = taskNavigationAppearance
+                UINavigationBar.appearance().scrollEdgeAppearance = groupedNavigationAppearance
+                
+                // Additional settings to ensure absolutely no bottom line/border
+                UINavigationBar.appearance().setBackgroundImage(UIImage(), for: .default)
+                UINavigationBar.appearance().shadowImage = UIImage()
+                
+                // Force update - critical for removing bottom borders
+                let navBars = UINavigationBar.appearance()
+                navBars.isTranslucent = true
+                navBars.tintColor = UIColor(Color(hex: "#5D4EFF"))
+                
+                // Direct appearance approach - more reliable
+                UINavigationBar.appearance().clipsToBounds = true // This helps prevent the hairline from showing
                 
                 // Make the search bar more compact
                 UITextField.appearance(whenContainedInInstancesOf: [UISearchBar.self]).defaultTextAttributes =

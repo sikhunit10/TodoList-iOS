@@ -18,6 +18,10 @@ struct TaskListView: View {
     @State private var selectedTaskId: String? = nil
     @AppStorage("completedTasksVisible") private var completedTasksVisible = true
     
+    // Edit mode states
+    @State private var isEditMode = false
+    @State private var selectedTaskIds = Set<UUID>()
+    
     // Define sort descriptors
     private static let sortDescriptors = [
         SortDescriptor(\Task.isCompleted, order: .forward),
@@ -36,14 +40,72 @@ struct TaskListView: View {
             VStack(spacing: 0) {
                 // Modern Filter Selector
                 // Custom animated segment control with nice visuals
-                SegmentedFilterView(selectedFilter: $selectedFilter)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 0)
-                    .padding(.bottom, 0)
-                    .background(Color(UIColor.systemBackground))
-                    .onChange(of: selectedFilter) { _ in
-                        updateFetchRequest()
+                // Hide filter when in edit mode
+                if !isEditMode {
+                    SegmentedFilterView(selectedFilter: $selectedFilter)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 0)
+                        .padding(.bottom, 0)
+                        .background(Color.white)
+                        .onChange(of: selectedFilter) { _ in
+                            updateFetchRequest()
+                        }
+                } else {
+                    // iOS-native edit mode header
+                    VStack(spacing: 0) {
+                        Divider()
+                        
+                        HStack {
+                            // Left action: Select All / Deselect All
+                            Button(action: {
+                                withAnimation {
+                                    if selectedTaskIds.count == tasks.count && !tasks.isEmpty {
+                                        selectedTaskIds.removeAll()
+                                    } else {
+                                        selectedTaskIds = Set(tasks.compactMap { $0.id })
+                                    }
+                                }
+                            }) {
+                                Text(selectedTaskIds.count == tasks.count && !tasks.isEmpty ? "Deselect All" : "Select All")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(Color(hex: "#5D4EFF"))
+                            }
+                            .disabled(tasks.isEmpty)
+                            
+                            Spacer()
+                            
+                            // Selected count indicator
+                            if selectedTaskIds.count > 0 {
+                                Text("\(selectedTaskIds.count) item\(selectedTaskIds.count > 1 ? "s" : "") selected")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            // Delete action
+                            Button(action: {
+                                deleteSelectedTasks()
+                            }) {
+                                if selectedTaskIds.isEmpty {
+                                    Text("Delete")
+                                        .font(.system(size: 15))
+                                        .foregroundColor(.gray)
+                                } else {
+                                    Text("Delete")
+                                        .font(.system(size: 15))
+                                        .foregroundColor(.red)
+                                }
+                            }
+                            .disabled(selectedTaskIds.isEmpty)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        
+                        Divider()
                     }
+                    .background(Color.white)
+                }
                 
                 // Task List with improved spacing
                 List {
@@ -53,30 +115,92 @@ struct TaskListView: View {
                             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     } else {
                         ForEach(tasks) { task in
-                            TaskCardView(task: task)
-                                .listRowSeparator(.hidden)
-                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                                .swipeActions(edge: .trailing) {
-                                    Button(role: .destructive) {
-                                        deleteTask(task)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                }
-                                .swipeActions(edge: .leading) {
-                                    Button {
-                                        withAnimation {
-                                            toggleTaskCompletion(task)
+                            ZStack {
+                                // Task card with iOS-native style in edit mode
+                                TaskCardView(task: task)
+                                    .listRowSeparator(.hidden)
+                                    .listRowInsets(EdgeInsets(
+                                        top: 6, 
+                                        // Standard leading edge margin
+                                        leading: 16, 
+                                        bottom: 6, 
+                                        // More trailing space in edit mode for selection indicator
+                                        trailing: isEditMode ? 60 : 16
+                                    ))
+                                    // Standard iOS behavior - no scaling effects
+                                    .opacity(selectedTaskIds.contains(task.id ?? UUID()) ? 1.0 : 1.0)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: !isEditMode) {
+                                        if !isEditMode {
+                                            Button(role: .destructive) {
+                                                deleteTask(task)
+                                            } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
                                         }
-                                    } label: {
-                                        Label(task.isCompleted ? "Mark Incomplete" : "Complete", 
-                                              systemImage: task.isCompleted ? "circle" : "checkmark.circle.fill")
-                                            .tint(.green)
+                                    }
+                                    .swipeActions(edge: .leading, allowsFullSwipe: !isEditMode) {
+                                        if !isEditMode {
+                                            Button {
+                                                withAnimation {
+                                                    toggleTaskCompletion(task)
+                                                }
+                                            } label: {
+                                                Label(task.isCompleted ? "Mark Incomplete" : "Complete", 
+                                                      systemImage: task.isCompleted ? "circle" : "checkmark.circle.fill")
+                                                    .tint(.green)
+                                            }
+                                        }
+                                    }
+                                
+                                // Modified card appearance in edit mode - iOS-style selection
+                                if isEditMode, let taskId = task.id {
+                                    // iOS-style checkmark at trailing edge (right side)
+                                    HStack {
+                                        Spacer()
+                                        
+                                        ZStack {
+                                            // Selection circle
+                                            Circle()
+                                                .fill(selectedTaskIds.contains(taskId) ? 
+                                                      Color(hex: "#5D4EFF") : 
+                                                      Color(UIColor.systemFill))
+                                                .frame(width: 28, height: 28)
+                                            
+                                            // Checkmark or empty
+                                            if selectedTaskIds.contains(taskId) {
+                                                Image(systemName: "checkmark")
+                                                    .font(.system(size: 14, weight: .bold))
+                                                    .foregroundColor(.white)
+                                            }
+                                        }
+                                        .padding(.trailing, 20)
+                                        .padding(.leading, 8)
+                                    }
+                                    
+                                    // iOS selection overlay (gray background for selected items)
+                                    if selectedTaskIds.contains(taskId) {
+                                        Color(UIColor.systemGray5)
+                                            .opacity(0.35)
+                                            .cornerRadius(10)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
                                     }
                                 }
-                                .onTapGesture {
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if isEditMode, let taskId = task.id {
+                                    withAnimation(.spring(dampingFraction: 0.7)) {
+                                        if selectedTaskIds.contains(taskId) {
+                                            selectedTaskIds.remove(taskId)
+                                        } else {
+                                            selectedTaskIds.insert(taskId)
+                                        }
+                                    }
+                                } else if !isEditMode {
                                     selectedTaskId = task.id?.uuidString
                                 }
+                            }
                         }
                         
                         // Add consistent space at the bottom
@@ -86,12 +210,15 @@ struct TaskListView: View {
                     }
                 }
                 .listStyle(.plain)
-                .background(Color(UIColor.systemBackground))
+                .background(Color.white)
             }
             
             // Floating action button (positioned with its own container)
-            FloatingAddButton {
-                showingAddTask = true
+            // Hide when in edit mode
+            if !isEditMode {
+                FloatingAddButton {
+                    showingAddTask = true
+                }
             }
         }
         .searchable(text: $searchText, prompt: "Search tasks")
@@ -101,10 +228,23 @@ struct TaskListView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                EditButton()
+                Button(action: {
+                    withAnimation {
+                        // Toggle edit mode and clear selections when exiting
+                        isEditMode.toggle()
+                        if !isEditMode {
+                            selectedTaskIds.removeAll()
+                        }
+                    }
+                }) {
+                    Text(isEditMode ? "Done" : "Edit")
+                        .fontWeight(isEditMode ? .semibold : .regular)
+                        .foregroundColor(isEditMode ? Color(hex: "#5D4EFF") : Color(hex: "#5D4EFF"))
+                }
+                .disabled(tasks.isEmpty)
             }
         }
-        .background(Color(UIColor.systemBackground))
+        .background(Color.white)
         .sheet(isPresented: $showingAddTask) {
             NavigationStack {
                 TaskFormView(mode: .add, onSave: {
@@ -297,6 +437,27 @@ struct TaskListView: View {
         withAnimation {
             dataController.toggleTaskCompletion(id: id)
             viewContext.refreshAllObjects()
+        }
+    }
+    
+    // Custom edit mode functions
+    
+    private func deleteSelectedTasks() {
+        withAnimation(.spring(dampingFraction: 0.7)) {
+            // Find all tasks with matching IDs and delete them
+            for taskId in selectedTaskIds {
+                if let taskToDelete = tasks.first(where: { $0.id == taskId }) {
+                    deleteTask(taskToDelete)
+                }
+            }
+            
+            // Clear selection after deletion
+            selectedTaskIds.removeAll()
+            
+            // Exit edit mode if there are no more tasks
+            if tasks.isEmpty {
+                isEditMode = false
+            }
         }
     }
 }
