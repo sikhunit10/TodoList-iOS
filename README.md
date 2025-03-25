@@ -70,3 +70,8 @@ The app respects user privacy by:
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Hire Me
+
+If you'd like to hire me for your iOS development project, please visit my website:
+[https://www.harjotsinghpanesar.com](https://www.harjotsinghpanesar.com)
