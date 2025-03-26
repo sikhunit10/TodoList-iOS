@@ -67,9 +67,13 @@ struct TaskListView: View {
                                     }
                                 }
                             }) {
-                                Text(selectedTaskIds.count == tasks.count && !tasks.isEmpty ? "Deselect All" : "Select All")
-                                    .font(.system(size: 15))
-                                    .foregroundColor(Color(hex: "#5D4EFF"))
+                                HStack(spacing: 5) {
+                                    Image(systemName: selectedTaskIds.count == tasks.count && !tasks.isEmpty ? "minus.square" : "checkmark.square")
+                                        .font(.system(size: 15, weight: .medium))
+                                    Text(selectedTaskIds.count == tasks.count && !tasks.isEmpty ? "Deselect All" : "Select All")
+                                        .font(.system(size: 15))
+                                }
+                                .foregroundColor(Color(hex: "#5D4EFF"))
                             }
                             .disabled(tasks.isEmpty)
                             
@@ -88,15 +92,13 @@ struct TaskListView: View {
                             Button(action: {
                                 deleteSelectedTasks()
                             }) {
-                                if selectedTaskIds.isEmpty {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 15, weight: .medium))
                                     Text("Delete")
                                         .font(.system(size: 15))
-                                        .foregroundColor(.gray)
-                                } else {
-                                    Text("Delete")
-                                        .font(.system(size: 15))
-                                        .foregroundColor(.red)
                                 }
+                                .foregroundColor(selectedTaskIds.isEmpty ? .gray : .red)
                             }
                             .disabled(selectedTaskIds.isEmpty)
                         }
@@ -245,9 +247,15 @@ struct TaskListView: View {
                         }
                     }
                 }) {
-                    Text(isEditMode ? "Done" : "Edit")
-                        .fontWeight(isEditMode ? .semibold : .regular)
-                        .foregroundColor(isEditMode ? Color(hex: "#5D4EFF") : Color(hex: "#5D4EFF"))
+                    if isEditMode {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(Color(hex: "#5D4EFF"))
+                    } else {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(Color(hex: "#5D4EFF"))
+                    }
                 }
                 .disabled(tasks.isEmpty)
             }
