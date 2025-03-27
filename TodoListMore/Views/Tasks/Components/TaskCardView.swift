@@ -191,7 +191,7 @@ struct TaskCardFooterView: View {
     var body: some View {
         // Use VStack for smaller screens to avoid truncation
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
+            HStack(spacing: 0) { // Reduced spacing between elements
                 // Due date chip - using custom date format instead of .date style
                 if let dueDate = dueDate {
                     HStack(spacing: 4) {
