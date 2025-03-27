@@ -204,6 +204,7 @@ struct TaskCardFooterView: View {
                     .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.secondary)
                     .padding(.vertical, 5)
                     .padding(.horizontal, 8)
+                    .frame(minWidth: 120) // Increased width to fit full date
                     .background(colorScheme == .dark ? Color.secondary.opacity(0.2) : Color.secondary.opacity(0.08))
                     .cornerRadius(8)
                 }
