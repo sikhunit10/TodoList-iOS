@@ -300,9 +300,31 @@ struct TaskFormView: View {
                                                 }
                                                 .buttonStyle(.plain)
                                             }
+                                            
+                                            // Add new category button
+                                            Button {
+                                                showCategoryForm = true
+                                            } label: {
+                                                HStack {
+                                                    Image(systemName: "plus.circle.fill")
+                                                        .foregroundColor(.accentColor)
+                                                        .frame(width: 18, height: 18)
+                                                    
+                                                    Text("Add New Category")
+                                                        .foregroundColor(.accentColor)
+                                                        .fontWeight(.medium)
+                                                    
+                                                    Spacer()
+                                                }
+                                                .contentShape(Rectangle())
+                                                .padding(.horizontal, 12)
+                                                .padding(.vertical, 10)
+                                            }
+                                            .buttonStyle(.plain)
+                                            .padding(.top, 4)
                                         }
                                     }
-                                    .frame(maxHeight: 220)
+                                    .frame(maxHeight: 260)
                                 }
                             }
                         }
