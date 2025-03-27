@@ -214,6 +214,8 @@ struct TaskCardFooterView: View {
                     Text(DateUtils.timeAgo(from: dateCreated))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : Color.secondary.opacity(0.8))
+                        .lineLimit(1)
+                        .frame(minWidth: 75)
                 }
                 
                 Spacer()
