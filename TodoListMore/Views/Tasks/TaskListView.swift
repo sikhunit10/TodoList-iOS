@@ -110,114 +110,141 @@ struct TaskListView: View {
                     .background(Color.white)
                 }
                 
-                // Task ScrollView with custom VStack instead of List to avoid separator issues
-                ScrollView {
-                    VStack(spacing: 8) { // Increased spacing between cards for better visual separation
-                        if tasks.isEmpty {
-                            EmptyTaskView(onAddTask: { 
-                                // Switch to the appropriate tab before showing the add task form
-                                // to ensure the new task will be visible after creation
-                                switchToAppropriateTabForNewTask()
-                                showingAddTask = true 
-                            })
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                        } else {
-                            // Add top padding for first card
-                            Color.clear.frame(height: 6)
-                            
-                            ForEach(tasks) { task in
-                                ZStack {
-                                    // Task card with iOS-native style in edit mode
-                                    TaskCardView(task: task)
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 0)
-                                        // Standard iOS behavior - no scaling effects
-                                        .opacity(selectedTaskIds.contains(task.id ?? UUID()) ? 1.0 : 1.0)
-                                    
-                                    // Modified card appearance in edit mode - iOS-style selection
-                                    if isEditMode, let taskId = task.id {
-                                        // iOS-style checkmark at trailing edge (right side)
-                                        HStack {
-                                            Spacer()
+                // List with swipe actions (replaces ScrollView+VStack)
+                List {
+                    if tasks.isEmpty {
+                        EmptyTaskView(onAddTask: { 
+                            // Switch to the appropriate tab before showing the add task form
+                            // to ensure the new task will be visible after creation
+                            switchToAppropriateTabForNewTask()
+                            showingAddTask = true 
+                        })
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.white)
+                    } else {
+                        // Tasks list with swipe actions
+                        ForEach(tasks) { task in
+                            ZStack {
+                                // Task card with iOS-native style in edit mode
+                                TaskCardView(task: task)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 4)
+                                    // Standard iOS behavior - no scaling effects
+                                    .opacity(selectedTaskIds.contains(task.id ?? UUID()) ? 1.0 : 1.0)
+                                
+                                // Modified card appearance in edit mode - iOS-style selection
+                                if isEditMode, let taskId = task.id {
+                                    // iOS-style checkmark at trailing edge (right side)
+                                    HStack {
+                                        Spacer()
+                                        
+                                        ZStack {
+                                            // Selection circle
+                                            Circle()
+                                                .fill(selectedTaskIds.contains(taskId) ? 
+                                                      Color(hex: "#5D4EFF") : 
+                                                      Color(UIColor.systemFill))
+                                                .frame(width: 28, height: 28)
                                             
-                                            ZStack {
-                                                // Selection circle
-                                                Circle()
-                                                    .fill(selectedTaskIds.contains(taskId) ? 
-                                                          Color(hex: "#5D4EFF") : 
-                                                          Color(UIColor.systemFill))
-                                                    .frame(width: 28, height: 28)
-                                                
-                                                // Checkmark or empty
-                                                if selectedTaskIds.contains(taskId) {
-                                                    Image(systemName: "checkmark")
-                                                        .font(.system(size: 14, weight: .bold))
-                                                        .foregroundColor(.white)
-                                                }
-                                            }
-                                            .padding(.trailing, 20)
-                                            .padding(.leading, 8)
-                                        }
-                                        
-                                        // iOS selection overlay (gray background for selected items)
-                                        if selectedTaskIds.contains(taskId) {
-                                            Color(UIColor.systemGray5)
-                                                .opacity(0.35)
-                                                .cornerRadius(10)
-                                                .padding(.horizontal, 8)
-                                                .padding(.vertical, 4)
-                                        }
-                                    }
-                                }
-                                .contentShape(Rectangle())
-                                .contextMenu {
-                                    if !isEditMode {
-                                        Button {
-                                            withAnimation {
-                                                if let id = task.id {
-                                                    dataController.toggleTaskCompletion(id: id)
-                                                    viewContext.refreshAllObjects()
-                                                }
-                                            }
-                                        } label: {
-                                            Label(task.isCompleted ? "Mark Incomplete" : "Mark Complete", 
-                                                  systemImage: task.isCompleted ? "circle" : "checkmark.circle.fill")
-                                        }
-                                        
-                                        Button(role: .destructive) {
-                                            deleteTask(task)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
-                                    }
-                                }
-                                .onTapGesture {
-                                    if isEditMode, let taskId = task.id {
-                                        withAnimation(.spring(dampingFraction: 0.7)) {
+                                            // Checkmark or empty
                                             if selectedTaskIds.contains(taskId) {
-                                                selectedTaskIds.remove(taskId)
-                                            } else {
-                                                selectedTaskIds.insert(taskId)
+                                                Image(systemName: "checkmark")
+                                                    .font(.system(size: 14, weight: .bold))
+                                                    .foregroundColor(.white)
                                             }
                                         }
-                                    } else if !isEditMode {
-                                        selectedTaskId = task.id?.uuidString
+                                        .padding(.trailing, 20)
+                                        .padding(.leading, 8)
+                                    }
+                                    
+                                    // iOS selection overlay (gray background for selected items)
+                                    if selectedTaskIds.contains(taskId) {
+                                        Color(UIColor.systemGray5)
+                                            .opacity(0.35)
+                                            .cornerRadius(10)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
                                     }
                                 }
-                                .padding(.vertical, 0)
                             }
-                            
-                            // Add bottom padding for last card
-                            Color.clear.frame(height: 6)
-                            
-                            // Add consistent space at the bottom for floating button
-                            Spacer()
-                                .frame(height: 76)
+                            .contentShape(Rectangle())
+                            .contextMenu {
+                                if !isEditMode {
+                                    Button {
+                                        withAnimation {
+                                            if let id = task.id {
+                                                dataController.toggleTaskCompletion(id: id)
+                                                viewContext.refreshAllObjects()
+                                            }
+                                        }
+                                    } label: {
+                                        Label(task.isCompleted ? "Mark Incomplete" : "Mark Complete", 
+                                              systemImage: task.isCompleted ? "circle" : "checkmark.circle.fill")
+                                    }
+                                    
+                                    Button(role: .destructive) {
+                                        deleteTask(task)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                            }
+                            .onTapGesture {
+                                if isEditMode, let taskId = task.id {
+                                    withAnimation(.spring(dampingFraction: 0.7)) {
+                                        if selectedTaskIds.contains(taskId) {
+                                            selectedTaskIds.remove(taskId)
+                                        } else {
+                                            selectedTaskIds.insert(taskId)
+                                        }
+                                    }
+                                } else if !isEditMode {
+                                    selectedTaskId = task.id?.uuidString
+                                }
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                // Right swipe - Delete
+                                Button(role: .destructive) {
+                                    deleteTask(task)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                                .tint(.red)
+                            }
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                // Left swipe - Toggle completion
+                                Button {
+                                    if let id = task.id {
+                                        withAnimation {
+                                            dataController.toggleTaskCompletion(id: id)
+                                            viewContext.refreshAllObjects()
+                                        }
+                                    }
+                                } label: {
+                                    Label(
+                                        task.isCompleted ? "Incomplete" : "Complete", 
+                                        systemImage: task.isCompleted ? "circle" : "checkmark.circle.fill"
+                                    )
+                                }
+                                .tint(task.isCompleted ? .gray : Color(hex: "#5D4EFF"))
+                            }
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.white)
                         }
+                        
+                        // Add spacer at bottom for floating button
+                        Color.clear
+                            .frame(height: 76)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.white)
                     }
-                    .padding(.vertical, 0)
                 }
+                .listStyle(.plain)
                 .background(Color.white)
             }
             
