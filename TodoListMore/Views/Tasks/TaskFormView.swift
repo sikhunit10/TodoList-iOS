@@ -23,6 +23,7 @@ struct TaskFormView: View {
     @State private var selectedCategoryId: UUID? = nil
     @State private var categories: [NSManagedObject] = []
     @State private var isLoading = false
+    @State private var showCategoryForm = false
     
     // Form mode (add new or edit existing task)
     let mode: FormMode
@@ -213,7 +214,8 @@ struct TaskFormView: View {
                                         .padding(.top, 8)
                                     
                                     Button {
-                                        // This would open a category form in a complete app
+                                        // Present category form as a sheet
+                                        showCategoryForm = true
                                     } label: {
                                         Label("Add Category", systemImage: "plus.circle")
                                             .font(.system(size: 16, weight: .medium))
@@ -314,6 +316,16 @@ struct TaskFormView: View {
             }
         }
         .disabled(isLoading)
+        .sheet(isPresented: $showCategoryForm) {
+            NavigationStack {
+                QuickCategoryForm()
+                    .environmentObject(dataController)
+            }
+            .presentationDetents([.medium])
+            .onDisappear {
+                loadCategories()
+            }
+        }
         .onAppear {
             loadCategories()
             
@@ -442,4 +454,73 @@ struct TaskFormView: View {
 enum FormMode {
     case add
     case edit(String) // Using a String ID instead of Task entity
+}
+
+// Simple category form for quick category creation
+struct QuickCategoryForm: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var dataController: DataController
+    
+    @State private var name = ""
+    @State private var selectedColorIndex = 0
+    
+    // Predefined color options
+    let predefinedColors = [
+        "#3478F6", // Blue
+        "#30D158", // Green
+        "#FF9F0A", // Orange
+        "#FF453A"  // Red
+    ]
+    
+    var body: some View {
+        Form {
+            Section(header: Text("Category Details")) {
+                TextField("Name", text: $name)
+            }
+            
+            Section(header: Text("Color")) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 10) {
+                    ForEach(0..<predefinedColors.count, id: \.self) { index in
+                        Circle()
+                            .fill(Color(hex: predefinedColors[index]))
+                            .frame(width: 30, height: 30)
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.primary, lineWidth: selectedColorIndex == index ? 2 : 0)
+                                    .padding(2)
+                            )
+                            .onTapGesture {
+                                selectedColorIndex = index
+                            }
+                    }
+                }
+                .padding(.vertical, 8)
+            }
+        }
+        .navigationTitle("New Category")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") {
+                    dismiss()
+                }
+            }
+            
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") {
+                    saveCategory()
+                    dismiss()
+                }
+                .disabled(name.isEmpty)
+            }
+        }
+    }
+    
+    // Save the new category
+    private func saveCategory() {
+        dataController.addCategory(
+            name: name,
+            colorHex: predefinedColors[selectedColorIndex]
+        )
+    }
 }
