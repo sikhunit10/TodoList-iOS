@@ -81,7 +81,7 @@ struct TaskCardView: View {
                 .padding(.bottom, 2) // Minimal bottom padding
             }
         }
-        .frame(height: description.isEmpty ? 90 : 110) // Further reduced height
+        .frame(height: description.isEmpty ? 90 : 130) // Increased height for multi-line description
         .padding(.horizontal, 4)
         .padding(.vertical, 0)
         .contentShape(Rectangle())
@@ -166,7 +166,7 @@ struct TaskCardHeaderView: View {
             Text(description)
                 .font(.system(size: 14))
                 .foregroundColor(.secondary)
-                .lineLimit(1)
+                .lineLimit(3) // Allow up to 3 lines for description
                 .padding(.vertical, 4) // Equal padding top and bottom
                 .padding(.horizontal, 16)
                 .padding(.leading, 46) // Align with title text
