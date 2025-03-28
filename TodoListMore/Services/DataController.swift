@@ -209,48 +209,65 @@ class DataController: ObservableObject {
     
     func updateCategory(id: UUID, name: String? = nil, colorHex: String? = nil) -> Bool {
         let context = container.viewContext
-        let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "Category")
-        fetchRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         
-        do {
-            let categories = try context.fetch(fetchRequest)
-            guard let category = categories.first else { return false }
+        // Use a background context for the fetch and update
+        let bgContext = container.newBackgroundContext()
+        bgContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        
+        var success = false
+        
+        bgContext.performAndWait {
+            let fetchRequest = NSFetchRequest<Category>(entityName: "Category")
+            fetchRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             
-            if let name = name {
-                category.setValue(name, forKey: "name")
-            }
-            
-            if let colorHex = colorHex {
-                category.setValue(colorHex, forKey: "colorHex")
-            }
-            
-            // First notify about the change
-            objectWillChange.send()
-            
-            // Before saving, find all tasks that use this category and refresh them
-            if let categoryTasks = category.value(forKey: "tasks") as? NSSet {
-                for case let task as NSManagedObject in categoryTasks {
-                    context.refresh(task, mergeChanges: true)
+            do {
+                let categories = try bgContext.fetch(fetchRequest)
+                guard let category = categories.first else { 
+                    return
                 }
+                
+                // Update category properties
+                if let name = name {
+                    category.name = name
+                }
+                
+                if let colorHex = colorHex {
+                    category.colorHex = colorHex
+                }
+                
+                // Save in background context
+                try bgContext.save()
+                success = true
+                
+            } catch {
+                print("Error updating category in background: \(error.localizedDescription)")
             }
-            
-            // Save changes
-            save()
-            
-            // Force immediate UI update via notification
-            NotificationCenter.default.post(name: .dataDidChange, object: nil)
-            
-            // Add a delay to ensure changes propagate
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.objectWillChange.send()
-                NotificationCenter.default.post(name: .dataDidChange, object: nil)
-            }
-            
-            return true
-        } catch {
-            print("Error updating category: \(error.localizedDescription)")
-            return false
         }
+        
+        guard success else { return false }
+        
+        // Send notifications to update the UI
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Notify that the data model has changed
+            self.objectWillChange.send()
+            
+            // Refresh all objects to get latest data
+            self.container.viewContext.refreshAllObjects()
+            
+            // Notify listeners of specific category update
+            NotificationCenter.default.post(
+                name: .categoryUpdated,
+                object: nil,
+                userInfo: ["categoryId": id]
+            )
+            
+            // Also send general data change notification
+            NotificationCenter.default.post(name: .dataDidChange, object: nil)
+        }
+        
+        return success
     }
     
     // MARK: - Batch Operations

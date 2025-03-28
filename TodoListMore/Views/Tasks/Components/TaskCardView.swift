@@ -11,13 +11,7 @@ import CoreData
 struct TaskCardView: View {
     let task: Task
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject private var dataController: DataController
-    @State private var refreshID = UUID() // Used to force refresh the view
-    
-    // Store these as @State to force updates when they change
-    @State private var categoryName: String = "Uncategorized"
-    @State private var categoryColorHex: String = "#5D4EFF"
     
     var body: some View {
         // Get task properties directly using the entity properties
@@ -27,9 +21,6 @@ struct TaskCardView: View {
         let priority = task.priority
         let dueDate = task.dueDate
         let dateCreated = task.dateCreated
-        
-        // Get category data from our @State variables
-        let categoryColor = Color(hex: categoryColorHex)
         
         // Get gradient based on priority
         let gradientColors = TaskStyleUtils.priorityGradient(priority: priority)
@@ -66,7 +57,6 @@ struct TaskCardView: View {
                     description: description,
                     dueDate: dueDate,
                     priority: priority,
-                    categoryColor: categoryColor,
                     gradientColors: gradientColors
                 )
                 .padding(.top, 2) // Minimal top padding
@@ -78,8 +68,7 @@ struct TaskCardView: View {
                 TaskCardFooterView(
                     dueDate: dueDate,
                     dateCreated: dateCreated,
-                    categoryName: categoryName,
-                    categoryColor: categoryColor
+                    task: task
                 )
                 .padding(.bottom, 2) // Minimal bottom padding
             }
@@ -93,44 +82,6 @@ struct TaskCardView: View {
         // Remove scale effect that was causing width issues
         // Add subtle animation to state changes
         .animation(.easeInOut(duration: 0.2), value: isCompleted)
-        .id(refreshID) // Use the refreshID to force the view to redraw
-        .onReceive(NotificationCenter.default.publisher(for: .dataDidChange)) { _ in
-            // Force refresh when data changes notification is received
-            DispatchQueue.main.async {
-                if let context = task.managedObjectContext {
-                    context.refresh(task, mergeChanges: true)
-                    if let category = task.category {
-                        context.refresh(category, mergeChanges: true)
-                    }
-                }
-                refreshID = UUID() // Change the ID to force refresh
-                loadCategoryData() // Reload category data
-            }
-        }
-        .onAppear {
-            // Load category data when the view appears
-            loadCategoryData()
-        }
-        // This onChange ensures we update our state when the task's category changes
-        .onChange(of: task.category) { newCategory in
-            loadCategoryData()
-        }
-    }
-    
-    // Function to load and update category data
-    private func loadCategoryData() {
-        if let category = task.category {
-            // Refresh the category object to get the latest data
-            task.managedObjectContext?.refresh(category, mergeChanges: true)
-            
-            // Update our state variables with the fresh data
-            categoryName = category.name ?? "Uncategorized"
-            categoryColorHex = category.colorHex ?? "#5D4EFF"
-        } else {
-            // Reset to defaults if there's no category
-            categoryName = "Uncategorized"
-            categoryColorHex = "#5D4EFF"
-        }
     }
 }
 
@@ -141,7 +92,6 @@ struct TaskCardHeaderView: View {
     let description: String
     let dueDate: Date?
     let priority: Int16
-    let categoryColor: Color
     let gradientColors: [Color]
     
     @EnvironmentObject private var dataController: DataController
@@ -217,8 +167,7 @@ struct TaskCardHeaderView: View {
 struct TaskCardFooterView: View {
     let dueDate: Date?
     let dateCreated: Date?
-    let categoryName: String
-    let categoryColor: Color
+    let task: Task
     
     @Environment(\.colorScheme) private var colorScheme
     
@@ -261,30 +210,8 @@ struct TaskCardFooterView: View {
                 
                 Spacer()
                 
-                // Category badge with fixed width
-                HStack(spacing: 5) {
-                    // Color dot
-                    Circle()
-                        .fill(categoryColor)
-                        .frame(width: 8, height: 8)
-                        .shadow(color: categoryColor.opacity(0.3), radius: 1, x: 0, y: 0)
-                    
-                    // Category name with consistent width handling
-                    Text(categoryName)
-                        .font(.system(size: 11, weight: .medium))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-                .frame(width: 100) // Fixed width for all category badges
-                .padding(.trailing, 2) // Add a bit more padding on right side
-                .foregroundColor(categoryColor.opacity(0.8))
-                .padding(.vertical, 5)
-                .padding(.horizontal, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(categoryColor.opacity(0.12))
-                        .shadow(color: categoryColor.opacity(0.1), radius: 1, x: 0, y: 1)
-                )
+                // Use our dedicated TaskCategoryView that handles real-time updates
+                TaskCategoryView(task: task)
             }
         }
         .padding(.horizontal, 16)

@@ -12,15 +12,23 @@ struct CategoryListView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject private var dataController: DataController
     
-    @State private var categories: [NSManagedObject] = []
-    @State private var isLoading = true
+    // Use the view model to manage categories
+    @StateObject private var viewModel: CategoryViewModel
     @State private var showingAddSheet = false
     @State private var editingCategoryId: UUID? = nil
-    @State private var searchText = ""
     
     // Edit mode states
     @State private var isEditMode = false
     @State private var selectedCategoryIds = Set<UUID>()
+    
+    init() {
+        // Create the view model using StateObject for proper lifecycle management
+        let vm = CategoryViewModel(
+            context: DataController.shared.container.viewContext, 
+            dataController: DataController.shared
+        )
+        _viewModel = StateObject(wrappedValue: vm)
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -33,18 +41,18 @@ struct CategoryListView: View {
                         // Left action: Select All / Deselect All
                         Button(action: {
                             withAnimation {
-                                if selectedCategoryIds.count == categories.count && !categories.isEmpty {
+                                if selectedCategoryIds.count == viewModel.categories.count && !viewModel.categories.isEmpty {
                                     selectedCategoryIds.removeAll()
                                 } else {
-                                    selectedCategoryIds = Set(categories.compactMap { $0.value(forKey: "id") as? UUID })
+                                    selectedCategoryIds = Set(viewModel.categories.compactMap { $0.id })
                                 }
                             }
                         }) {
-                            Text(selectedCategoryIds.count == categories.count && !categories.isEmpty ? "Deselect All" : "Select All")
+                            Text(selectedCategoryIds.count == viewModel.categories.count && !viewModel.categories.isEmpty ? "Deselect All" : "Select All")
                                 .font(.system(size: 15))
                                 .foregroundColor(Color(hex: "#5D4EFF"))
                         }
-                        .disabled(categories.isEmpty)
+                        .disabled(viewModel.categories.isEmpty)
                         
                         Spacer()
                         
@@ -82,22 +90,25 @@ struct CategoryListView: View {
             }
             
             List {
-            if isLoading {
-                // Show placeholders while loading
-                ForEach(0..<3) { index in
-                    CategoryPlaceholderRow(index: index)
-                        .redacted(reason: .placeholder)
-                }
-            } else if categories.isEmpty {
-                Text("No categories yet. Tap + to add a new category.")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-                    .listRowBackground(Color.clear)
-            } else {
-                ForEach(categories, id: \.self) { category in
-                    ZStack {
-                        CategoryRow(category: category, tasksCount: taskCount(for: category))
+                if viewModel.isLoading {
+                    // Show placeholders while loading
+                    ForEach(0..<3) { index in
+                        CategoryPlaceholderRow(index: index)
+                            .redacted(reason: .placeholder)
+                    }
+                } else if viewModel.categories.isEmpty {
+                    Text("No categories yet. Tap + to add a new category.")
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding()
+                        .listRowBackground(Color.clear)
+                } else {
+                    ForEach(viewModel.categories) { category in
+                        ZStack {
+                            CategoryRow(
+                                category: category,
+                                tasksCount: viewModel.taskCount(for: category)
+                            )
                             .swipeActions(edge: .trailing, allowsFullSwipe: !isEditMode) {
                                 if !isEditMode {
                                     Button(role: .destructive) {
@@ -113,66 +124,63 @@ struct CategoryListView: View {
                                 bottom: 6,
                                 trailing: isEditMode ? 60 : 16
                             ))
-                        
-                        // Modified appearance in edit mode - iOS-style selection
-                        if isEditMode, let categoryId = category.value(forKey: "id") as? UUID {
-                            // iOS-style checkmark at trailing edge (right side)
-                            HStack {
-                                Spacer()
-                                
-                                ZStack {
-                                    // Selection circle
-                                    Circle()
-                                        .fill(selectedCategoryIds.contains(categoryId) ? 
-                                              Color(hex: "#5D4EFF") : 
-                                              Color(UIColor.systemFill))
-                                        .frame(width: 28, height: 28)
-                                    
-                                    // Checkmark or empty
-                                    if selectedCategoryIds.contains(categoryId) {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 14, weight: .bold))
-                                            .foregroundColor(.white)
-                                    }
-                                }
-                                .padding(.trailing, 20)
-                                .padding(.leading, 8)
-                            }
                             
-                            // iOS selection overlay (gray background for selected items)
-                            if selectedCategoryIds.contains(categoryId) {
-                                Color(UIColor.systemGray5)
-                                    .opacity(0.35)
-                                    .cornerRadius(10)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
+                            // Modified appearance in edit mode - iOS-style selection
+                            if isEditMode, let categoryId = category.id {
+                                // iOS-style checkmark at trailing edge
+                                HStack {
+                                    Spacer()
+                                    
+                                    ZStack {
+                                        // Selection circle
+                                        Circle()
+                                            .fill(selectedCategoryIds.contains(categoryId) ? 
+                                                  Color(hex: "#5D4EFF") : 
+                                                  Color(UIColor.systemFill))
+                                            .frame(width: 28, height: 28)
+                                        
+                                        // Checkmark or empty
+                                        if selectedCategoryIds.contains(categoryId) {
+                                            Image(systemName: "checkmark")
+                                                .font(.system(size: 14, weight: .bold))
+                                                .foregroundColor(.white)
+                                        }
+                                    }
+                                    .padding(.trailing, 20)
+                                    .padding(.leading, 8)
+                                }
+                                
+                                // iOS selection overlay
+                                if selectedCategoryIds.contains(categoryId) {
+                                    Color(UIColor.systemGray5)
+                                        .opacity(0.35)
+                                        .cornerRadius(10)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                }
                             }
                         }
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        if isEditMode, let categoryId = category.value(forKey: "id") as? UUID {
-                            withAnimation(.spring(dampingFraction: 0.7)) {
-                                if selectedCategoryIds.contains(categoryId) {
-                                    selectedCategoryIds.remove(categoryId)
-                                } else {
-                                    selectedCategoryIds.insert(categoryId)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if isEditMode, let categoryId = category.id {
+                                withAnimation(.spring(dampingFraction: 0.7)) {
+                                    if selectedCategoryIds.contains(categoryId) {
+                                        selectedCategoryIds.remove(categoryId)
+                                    } else {
+                                        selectedCategoryIds.insert(categoryId)
+                                    }
                                 }
+                            } else if let categoryId = category.id {
+                                editingCategoryId = categoryId
                             }
-                        } else if let categoryId = category.value(forKey: "id") as? UUID {
-                            editingCategoryId = categoryId
                         }
                     }
                 }
             }
+            .listStyle(.insetGrouped)
         }
-        }
-        .listStyle(.insetGrouped)
         .navigationTitle("Categories")
-        .searchable(text: $searchText, prompt: "Search categories")
-        .onChange(of: searchText) { _ in
-            loadCategories()
-        }
+        .searchable(text: $viewModel.searchText, prompt: "Search categories")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
@@ -186,9 +194,9 @@ struct CategoryListView: View {
                 }) {
                     Text(isEditMode ? "Done" : "Edit")
                         .fontWeight(isEditMode ? .semibold : .regular)
-                        .foregroundColor(isEditMode ? Color(hex: "#5D4EFF") : Color(hex: "#5D4EFF"))
+                        .foregroundColor(Color(hex: "#5D4EFF"))
                 }
-                .disabled(categories.isEmpty)
+                .disabled(viewModel.categories.isEmpty)
             }
             
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -202,24 +210,18 @@ struct CategoryListView: View {
         }
         .sheet(isPresented: $showingAddSheet) {
             NavigationStack {
-                CategoryForm(mode: .add)
+                CategoryForm(mode: .add, viewModel: viewModel)
             }
             .presentationDetents([.medium])
-            .onDisappear {
-                loadCategories()
-            }
         }
         .sheet(item: $editingCategoryId) { categoryId in
             NavigationStack {
-                CategoryForm(mode: .edit(categoryId))
+                CategoryForm(mode: .edit(categoryId), viewModel: viewModel)
             }
             .presentationDetents([.medium])
-            .onDisappear {
-                loadCategories()
-            }
         }
         .overlay {
-            if !isLoading && categories.isEmpty {
+            if !viewModel.isLoading && viewModel.categories.isEmpty {
                 ContentUnavailableView(
                     "No Categories",
                     systemImage: "folder.badge.plus",
@@ -228,65 +230,27 @@ struct CategoryListView: View {
             }
         }
         .onAppear {
-            loadCategories()
+            viewModel.loadCategories()
         }
         .refreshable {
-            loadCategories()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .dataDidChange)) { _ in
-            DispatchQueue.main.async {
-                loadCategories()
-            }
+            viewModel.loadCategories()
         }
     }
     
     // MARK: - Private Methods
     
-    private func loadCategories() {
-        isLoading = true
-        
-        let context = dataController.container.viewContext
-        let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "Category")
-        
-        // Apply search filter if needed
-        if !searchText.isEmpty {
-            fetchRequest.predicate = NSPredicate(format: "name CONTAINS[cd] %@", searchText)
-        }
-        
-        // Sort categories by name
-        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
-        
-        do {
-            categories = try context.fetch(fetchRequest)
-            isLoading = false
-        } catch {
-            print("Error fetching categories: \(error.localizedDescription)")
-            isLoading = false
-        }
-    }
-    
-    private func deleteCategory(_ category: NSManagedObject) {
+    private func deleteCategory(_ category: Category) {
         withAnimation {
-            dataController.delete(category)
-            loadCategories()
+            viewModel.deleteCategory(category)
         }
-    }
-    
-    private func taskCount(for category: NSManagedObject) -> Int {
-        guard let tasks = category.value(forKey: "tasks") as? NSSet else {
-            return 0
-        }
-        return tasks.count
     }
     
     private func deleteSelectedCategories() {
         withAnimation(.spring(dampingFraction: 0.7)) {
             // Find all categories with matching IDs and delete them
             for categoryId in selectedCategoryIds {
-                if let categoryToDelete = categories.first(where: { 
-                    ($0.value(forKey: "id") as? UUID) == categoryId 
-                }) {
-                    deleteCategory(categoryToDelete)
+                if let categoryToDelete = viewModel.categories.first(where: { $0.id == categoryId }) {
+                    viewModel.deleteCategory(categoryToDelete)
                 }
             }
             
@@ -294,7 +258,7 @@ struct CategoryListView: View {
             selectedCategoryIds.removeAll()
             
             // Exit edit mode if there are no more categories
-            if categories.isEmpty {
+            if viewModel.categories.isEmpty {
                 isEditMode = false
             }
         }
@@ -303,19 +267,16 @@ struct CategoryListView: View {
 
 // Category row view for displaying a single category
 struct CategoryRow: View {
-    let category: NSManagedObject
+    let category: Category
     let tasksCount: Int
     
     var body: some View {
         HStack {
-            let colorHex = category.value(forKey: "colorHex") as? String ?? "#CCCCCC"
-            let name = category.value(forKey: "name") as? String ?? "Unnamed Category"
-            
             Circle()
-                .fill(Color(hex: colorHex))
+                .fill(Color(hex: category.categoryColorHex))
                 .frame(width: 16, height: 16)
             
-            Text(name)
+            Text(category.categoryName)
                 .fontWeight(.medium)
             
             Spacer()
@@ -362,162 +323,6 @@ struct CategoryPlaceholderRow: View {
         }
         .padding(.vertical, 4)
     }
-}
-
-// Form for adding or editing a category
-struct CategoryForm: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.managedObjectContext) private var viewContext
-    @EnvironmentObject private var dataController: DataController
-    
-    @State private var name = ""
-    @State private var selectedColorIndex = 0
-    @State private var isLoading = false
-    
-    let predefinedColors = [
-        "#3478F6", // Blue
-        "#30D158", // Green
-        "#FF9F0A", // Orange
-        "#FF453A"  // Red
-    ]
-    
-    // Form mode (add new or edit existing category)
-    let mode: CategoryFormMode
-    
-    var body: some View {
-        Form {
-            Section(header: Text("Category Details")) {
-                TextField("Name", text: $name)
-            }
-            
-            Section(header: Text("Color")) {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 10) {
-                    ForEach(0..<predefinedColors.count, id: \.self) { index in
-                        Circle()
-                            .fill(Color(hex: predefinedColors[index]))
-                            .frame(width: 30, height: 30)
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.primary, lineWidth: selectedColorIndex == index ? 2 : 0)
-                                    .padding(2)
-                            )
-                            .onTapGesture {
-                                selectedColorIndex = index
-                            }
-                    }
-                }
-                .padding(.vertical, 8)
-            }
-        }
-        .navigationTitle(isAddMode ? "New Category" : "Edit Category")
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") {
-                    dismiss()
-                }
-            }
-            
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Save") {
-                    let success = saveCategory()
-                    
-                    // Post notification that data has changed to all views that need updating
-                    NotificationCenter.default.post(name: .dataDidChange, object: nil)
-                    
-                    dismiss()
-                }
-                .disabled(name.isEmpty || isLoading)
-            }
-        }
-        .disabled(isLoading)
-        .onAppear {
-            if case .edit(let categoryId) = mode {
-                loadCategory(withId: categoryId)
-            }
-        }
-    }
-    
-    // MARK: - Private Methods
-    
-    private func loadCategory(withId id: UUID) {
-        isLoading = true
-        
-        let context = dataController.container.viewContext
-        let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "Category")
-        fetchRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        
-        do {
-            let categories = try context.fetch(fetchRequest)
-            if let category = categories.first {
-                name = category.value(forKey: "name") as? String ?? ""
-                
-                if let colorHex = category.value(forKey: "colorHex") as? String,
-                   let index = predefinedColors.firstIndex(of: colorHex) {
-                    selectedColorIndex = index
-                }
-            }
-        } catch {
-            print("Error loading category: \(error.localizedDescription)")
-        }
-        
-        isLoading = false
-    }
-    
-    private func saveCategory() -> Bool {
-        var success = false
-        var categoryId: UUID? = nil
-        
-        switch mode {
-        case .add:
-            if let newCategory = dataController.addCategory(
-                name: name,
-                colorHex: predefinedColors[selectedColorIndex]
-            ) as? NSManagedObject {
-                success = true
-                categoryId = newCategory.value(forKey: "id") as? UUID
-            }
-            
-        case .edit(let id):
-            success = dataController.updateCategory(
-                id: id,
-                name: name,
-                colorHex: predefinedColors[selectedColorIndex]
-            )
-            categoryId = id
-        }
-        
-        // Force immediate UI refresh after saving
-        if success {
-            // Post notification immediately
-            NotificationCenter.default.post(name: .dataDidChange, object: nil)
-            
-            // Also refresh after a small delay to ensure CoreData has processed changes
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                NotificationCenter.default.post(name: .dataDidChange, object: nil)
-            }
-            
-            // And again after a slightly longer delay for UI animations
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                NotificationCenter.default.post(name: .dataDidChange, object: nil)
-            }
-        }
-        
-        return success
-    }
-    
-    // Helper computed property to determine if we're in add mode
-    private var isAddMode: Bool {
-        if case .add = mode {
-            return true
-        }
-        return false
-    }
-}
-
-// Form mode for adding or editing a category
-enum CategoryFormMode {
-    case add
-    case edit(UUID)
 }
 
 // Extension to make UUID identifiable for the sheet
