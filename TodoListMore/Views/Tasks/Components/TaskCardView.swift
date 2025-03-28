@@ -97,6 +97,11 @@ struct TaskCardHeaderView: View {
     @EnvironmentObject private var dataController: DataController
     
     var body: some View {
+        // Get the category color
+        let categoryColor = task.category != nil ? 
+            Color(hex: task.category?.colorHex ?? "#5D4EFF") : 
+            Color(hex: "#5D4EFF")
+            
         HStack(alignment: .center, spacing: 14) {
             // Checkbox with animated press effect
             Button(action: {
