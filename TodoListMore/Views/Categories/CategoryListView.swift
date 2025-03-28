@@ -269,6 +269,8 @@ struct CategoryListView: View {
     // MARK: - Private Methods
     
     private func deleteCategory(_ category: Category) {
+        // Use withAnimation here because the DataController and viewModel no longer
+        // include animation in their methods
         withAnimation(.smooth) {
             viewModel.deleteCategory(category)
         }
@@ -279,7 +281,6 @@ struct CategoryListView: View {
             // Find all categories with matching IDs and delete them
             for categoryId in selectedCategoryIds {
                 if let categoryToDelete = viewModel.categories.first(where: { $0.id == categoryId }) {
-                    // We don't need to wrap this in another animation since the method already has animation
                     viewModel.deleteCategory(categoryToDelete)
                 }
             }

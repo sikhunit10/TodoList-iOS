@@ -49,15 +49,9 @@ class DataController: ObservableObject {
                 // Refresh all objects to ensure changes propagate to all views
                 container.viewContext.refreshAllObjects()
                 
-                // Post a notification that data has changed
+                // Post a notification that data has changed - just once, no delayed notification
                 NotificationCenter.default.post(name: .dataDidChange, object: nil)
                 
-                // Add a small delay to ensure UI can update
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    self.objectWillChange.send()
-                    // Post another notification after delay for views that may need to update later
-                    NotificationCenter.default.post(name: .dataDidChange, object: nil)
-                }
             } catch {
                 print("Error saving context: \(error.localizedDescription)")
                 // Just print the error since we removed the syncStatus
@@ -246,7 +240,7 @@ class DataController: ObservableObject {
         
         guard success else { return false }
         
-        // Send notifications to update the UI
+        // Send notifications to update the UI only once
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
@@ -256,15 +250,13 @@ class DataController: ObservableObject {
             // Refresh all objects to get latest data
             self.container.viewContext.refreshAllObjects()
             
-            // Notify listeners of specific category update
+            // Send only one notification - the general data change notification
+            // This avoids duplicate refreshes from multiple observers
             NotificationCenter.default.post(
-                name: .categoryUpdated,
-                object: nil,
+                name: .dataDidChange, 
+                object: nil, 
                 userInfo: ["categoryId": id]
             )
-            
-            // Also send general data change notification
-            NotificationCenter.default.post(name: .dataDidChange, object: nil)
         }
         
         return success

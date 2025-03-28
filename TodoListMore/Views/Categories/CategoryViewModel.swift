@@ -62,11 +62,9 @@ class CategoryViewModel: ObservableObject {
         do {
             let fetchedCategories = try context.fetch(fetchRequest)
             DispatchQueue.main.async { [weak self] in
-                // Wrap the update in a withAnimation block to ensure smooth transitions
-                withAnimation(.smooth) {
-                    self?.categories = fetchedCategories
-                    self?.isLoading = false
-                }
+                // Don't use animation here - we'll handle it in the view instead
+                self?.categories = fetchedCategories
+                self?.isLoading = false
             }
         } catch {
             print("Error fetching categories: \(error.localizedDescription)")
@@ -81,9 +79,8 @@ class CategoryViewModel: ObservableObject {
         guard !name.isEmpty else { return false }
         
         if let _ = dataController.addCategory(name: name, colorHex: colorHex) {
-            // Force UI update
-            self.objectWillChange.send()
-            loadCategories()
+            // DataController.addCategory will post notifications which we're already
+            // observing in the initializer
             return true
         }
         return false
@@ -94,28 +91,9 @@ class CategoryViewModel: ObservableObject {
         guard id != UUID() else { return false }
         
         if dataController.updateCategory(id: id, name: name, colorHex: colorHex) {
-            // Immediately force a UI update
-            DispatchQueue.main.async {
-                // Force UI update
-                self.objectWillChange.send()
-                
-                // Explicitly refresh the context to get the latest data
-                self.context.refreshAllObjects()
-                
-                // Force reload categories with animation
-                self.loadCategories()
-                
-                // Notify listeners of the specific category ID that was updated
-                NotificationCenter.default.post(
-                    name: .categoryUpdated,
-                    object: nil,
-                    userInfo: ["categoryId": id]
-                )
-                
-                // Also post general data change notification
-                NotificationCenter.default.post(name: .dataDidChange, object: nil)
-            }
-            
+            // We don't need to do anything here, as the DataController is already
+            // posting the correct notifications, and we're listening for .dataDidChange
+            // in this class's initializer
             return true
         }
         return false
@@ -123,10 +101,10 @@ class CategoryViewModel: ObservableObject {
     
     /// Delete a category
     func deleteCategory(_ category: Category) {
-        withAnimation(.smooth) {
-            dataController.delete(category)
-            loadCategories()
-        }
+        // DataController.delete will already post the dataDidChange notification
+        // which we're observing in the initializer
+        dataController.delete(category)
+        // No need to call loadCategories() as we're already listening for changes
     }
     
     /// Get the count of tasks for a category
