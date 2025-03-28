@@ -167,7 +167,7 @@ struct TaskCardHeaderView: View {
                 .font(.system(size: 14))
                 .foregroundColor(.secondary)
                 .lineLimit(1)
-                .padding(.top, 6)
+                .padding(.vertical, 4) // Equal padding top and bottom
                 .padding(.horizontal, 16)
                 .padding(.leading, 46) // Align with title text
         }
