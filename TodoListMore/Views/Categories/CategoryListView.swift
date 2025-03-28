@@ -97,23 +97,24 @@ struct CategoryListView: View {
                         CategoryPlaceholderRow(index: index)
                             .redacted(reason: .placeholder)
                     }
-                } else if viewModel.categories.isEmpty {
+                } else if viewModel.categoryModels.isEmpty {
                     Text("No categories yet. Tap + to add a new category.")
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding()
                         .listRowBackground(Color.clear)
                 } else {
-                    ForEach(viewModel.categories) { category in
+                    ForEach(viewModel.categoryModels) { categoryModel in
                         ZStack {
-                            CategoryRow(
-                                category: category,
-                                tasksCount: viewModel.taskCount(for: category)
+                            DirectCategoryRow(
+                                name: categoryModel.name,
+                                colorHex: categoryModel.colorHex,
+                                tasksCount: categoryModel.taskCount
                             )
                             .swipeActions(edge: .trailing, allowsFullSwipe: !isEditMode) {
                                 if !isEditMode {
                                     Button(role: .destructive) {
-                                        deleteCategory(category)
+                                        deleteCategory(categoryModel.id)
                                     } label: {
                                         Label("Delete", systemImage: "trash")
                                     }
@@ -127,7 +128,7 @@ struct CategoryListView: View {
                             ))
                             
                             // Modified appearance in edit mode - iOS-style selection
-                            if isEditMode, let categoryId = category.id {
+                            if isEditMode {
                                 // iOS-style checkmark at trailing edge
                                 HStack {
                                     Spacer()
@@ -135,13 +136,13 @@ struct CategoryListView: View {
                                     ZStack {
                                         // Selection circle
                                         Circle()
-                                            .fill(selectedCategoryIds.contains(categoryId) ? 
+                                            .fill(selectedCategoryIds.contains(categoryModel.id) ? 
                                                   Color(hex: "#5D4EFF") : 
                                                   Color(UIColor.systemFill))
                                             .frame(width: 28, height: 28)
                                         
                                         // Checkmark or empty
-                                        if selectedCategoryIds.contains(categoryId) {
+                                        if selectedCategoryIds.contains(categoryModel.id) {
                                             Image(systemName: "checkmark")
                                                 .font(.system(size: 14, weight: .bold))
                                                 .foregroundColor(.white)
@@ -152,7 +153,7 @@ struct CategoryListView: View {
                                 }
                                 
                                 // iOS selection overlay
-                                if selectedCategoryIds.contains(categoryId) {
+                                if selectedCategoryIds.contains(categoryModel.id) {
                                     Color(UIColor.systemGray5)
                                         .opacity(0.35)
                                         .cornerRadius(10)
@@ -163,19 +164,19 @@ struct CategoryListView: View {
                         }
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            if isEditMode, let categoryId = category.id {
+                            if isEditMode {
                                 withAnimation(.spring(dampingFraction: 0.7)) {
-                                    if selectedCategoryIds.contains(categoryId) {
-                                        selectedCategoryIds.remove(categoryId)
+                                    if selectedCategoryIds.contains(categoryModel.id) {
+                                        selectedCategoryIds.remove(categoryModel.id)
                                     } else {
-                                        selectedCategoryIds.insert(categoryId)
+                                        selectedCategoryIds.insert(categoryModel.id)
                                     }
                                 }
-                            } else if let categoryId = category.id {
-                                editingCategoryId = categoryId
+                            } else {
+                                editingCategoryId = categoryModel.id
                             }
                         }
-                        .id(category.id) // Use stable ID for animations
+                        .id(categoryModel.id) // Use stable ID for animations
                         .transition(.asymmetric(
                             insertion: .scale.combined(with: .opacity),
                             removal: .opacity
@@ -188,7 +189,7 @@ struct CategoryListView: View {
             }
             .listStyle(.insetGrouped)
             // Use animation modifier directly at the list level for categories
-            .animation(.easeInOut(duration: 0.2), value: viewModel.categories)
+            .animation(.easeInOut(duration: 0.2), value: viewModel.categoryModels)
         }
         .navigationTitle("Categories")
         .searchable(text: $viewModel.searchText, prompt: "Search categories")
@@ -266,53 +267,46 @@ struct CategoryListView: View {
     
     // MARK: - Private Methods
     
-    private func deleteCategory(_ category: Category) {
-        // Use withAnimation here because the DataController and viewModel no longer
-        // include animation in their methods
+    private func deleteCategory(_ categoryId: UUID) {
         withAnimation(.smooth) {
-            viewModel.deleteCategory(category)
+            viewModel.deleteCategory(id: categoryId)
         }
     }
     
     private func deleteSelectedCategories() {
         withAnimation(.smooth) {
-            // Find all categories with matching IDs and delete them
+            // Delete all selected categories by ID
             for categoryId in selectedCategoryIds {
-                if let categoryToDelete = viewModel.categories.first(where: { $0.id == categoryId }) {
-                    viewModel.deleteCategory(categoryToDelete)
-                }
+                viewModel.deleteCategory(id: categoryId)
             }
             
             // Clear selection after deletion
             selectedCategoryIds.removeAll()
             
             // Exit edit mode if there are no more categories
-            if viewModel.categories.isEmpty {
+            if viewModel.categoryModels.isEmpty {
                 isEditMode = false
             }
         }
     }
 }
 
-// Category row view for displaying a single category
-struct CategoryRow: View {
-    let category: Category
+// Direct category row using UI model instead of Core Data entity
+struct DirectCategoryRow: View {
+    let name: String
+    let colorHex: String
     let tasksCount: Int
     
     var body: some View {
         HStack {
             Circle()
-                .fill(Color(hex: category.categoryColorHex))
+                .fill(Color(hex: colorHex))
                 .frame(width: 16, height: 16)
-                // Ensure the color animates smoothly
-                .animation(.default, value: category.categoryColorHex)
             
-            Text(category.categoryName)
+            Text(name)
                 .fontWeight(.medium)
-                // Prevent text flicker during transitions
+                // Prevent flicker during transitions
                 .contentTransition(.identity)
-                // Force no text animation (prevents jumping)
-                .animation(nil, value: category.categoryName)
             
             Spacer()
             
@@ -325,13 +319,9 @@ struct CategoryRow: View {
                 .cornerRadius(10)
                 // Fix the size to prevent jumping during animations
                 .fixedSize()
-                // Make sure the count doesn't animate
-                .animation(nil, value: tasksCount)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        // Make the row animate as a unit
-        .transition(.opacity)
     }
 }
 
