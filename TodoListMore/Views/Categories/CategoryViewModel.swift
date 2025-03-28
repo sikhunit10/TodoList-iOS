@@ -21,6 +21,9 @@ class CategoryViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var searchText: String = ""
     
+    // Track if we're currently updating to prevent visual flashes
+    private var isUpdating = false
+    
     // Hold our cancellables
     private var cancellables = Set<AnyCancellable>()
     
@@ -47,7 +50,17 @@ class CategoryViewModel: ObservableObject {
     
     /// Load all categories
     func loadCategories() {
-        isLoading = true
+        // Skip if we're already updating to prevent flashing
+        if isUpdating {
+            return
+        }
+        
+        isUpdating = true
+        
+        // Only set loading to true if we don't have categories yet
+        if categories.isEmpty {
+            isLoading = true
+        }
         
         let fetchRequest = Category.fetchRequest()
         
@@ -60,16 +73,34 @@ class CategoryViewModel: ObservableObject {
         fetchRequest.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
         
         do {
+            // Cache the existing categories to compare
+            let existingIds = Set(categories.compactMap { $0.id })
             let fetchedCategories = try context.fetch(fetchRequest)
-            DispatchQueue.main.async { [weak self] in
-                // Don't use animation here - we'll handle it in the view instead
-                self?.categories = fetchedCategories
-                self?.isLoading = false
+            let newIds = Set(fetchedCategories.compactMap { $0.id })
+            
+            // Only update the UI if there's an actual change (addition, removal, or order change)
+            let categoryChange = existingIds != newIds || 
+                                categories.count != fetchedCategories.count ||
+                                !categories.elementsEqual(fetchedCategories, by: { $0.id == $1.id })
+            
+            if categoryChange {
+                DispatchQueue.main.async { [weak self] in
+                    self?.categories = fetchedCategories
+                    self?.isLoading = false
+                    self?.isUpdating = false
+                }
+            } else {
+                // No real change, just silently update
+                DispatchQueue.main.async { [weak self] in
+                    self?.isLoading = false
+                    self?.isUpdating = false
+                }
             }
         } catch {
             print("Error fetching categories: \(error.localizedDescription)")
             DispatchQueue.main.async { [weak self] in
                 self?.isLoading = false
+                self?.isUpdating = false
             }
         }
     }

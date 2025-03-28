@@ -177,12 +177,18 @@ struct CategoryListView: View {
                             }
                         }
                         .id(category.id) // Use stable ID for animations
-                        .transition(.opacity.combined(with: .move(edge: .leading)))
+                        .matchedGeometryEffect(id: category.id, in: NamespaceWrapper.namespace)
+                        .transition(
+                            AnyTransition.asymmetric(
+                                insertion: .opacity.combined(with: .slide),
+                                removal: .opacity.combined(with: .slide)
+                            ).animation(.interactiveSpring(response: 0.3, dampingFraction: 0.7))
+                        )
                     }
                 }
             }
             .listStyle(.insetGrouped)
-            .animation(.smooth, value: viewModel.categories)
+            .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.8), value: viewModel.categories)
         }
         .navigationTitle("Categories")
         .searchable(text: $viewModel.searchText, prompt: "Search categories")
@@ -306,9 +312,13 @@ struct CategoryRow: View {
             Circle()
                 .fill(Color(hex: category.categoryColorHex))
                 .frame(width: 16, height: 16)
+                // Add some animation easing to the color
+                .animation(.easeInOut, value: category.categoryColorHex)
             
             Text(category.categoryName)
                 .fontWeight(.medium)
+                // Add identity transition to prevent text flicker
+                .contentTransition(.identity)
             
             Spacer()
             
@@ -319,6 +329,8 @@ struct CategoryRow: View {
                 .padding(.vertical, 4)
                 .background(Color(.systemGray6))
                 .cornerRadius(10)
+                // Fix the size to prevent jumping during animations
+                .fixedSize()
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
@@ -359,4 +371,9 @@ struct CategoryPlaceholderRow: View {
 // Extension to make UUID identifiable for the sheet
 extension UUID: Identifiable {
     public var id: UUID { self }
+}
+
+// Namespace wrapper for matchedGeometryEffect - Allows using it in static contexts
+struct NamespaceWrapper {
+    static let namespace = Namespace().wrappedValue
 }
