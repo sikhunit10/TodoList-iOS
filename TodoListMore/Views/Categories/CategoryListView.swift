@@ -42,18 +42,19 @@ struct CategoryListView: View {
                         // Left action: Select All / Deselect All
                         Button(action: {
                             withAnimation {
-                                if selectedCategoryIds.count == viewModel.categories.count && !viewModel.categories.isEmpty {
+                                if selectedCategoryIds.count == viewModel.categoryModels.count && !viewModel.categoryModels.isEmpty {
                                     selectedCategoryIds.removeAll()
                                 } else {
-                                    selectedCategoryIds = Set(viewModel.categories.compactMap { $0.id })
+                                    selectedCategoryIds = Set(viewModel.categoryModels.map { $0.id })
                                 }
                             }
                         }) {
-                            Text(selectedCategoryIds.count == viewModel.categories.count && !viewModel.categories.isEmpty ? "Deselect All" : "Select All")
+                            let isAllSelected = selectedCategoryIds.count == viewModel.categoryModels.count && !viewModel.categoryModels.isEmpty
+                            Text(isAllSelected ? "Deselect All" : "Select All")
                                 .font(.system(size: 15))
                                 .foregroundColor(Color(hex: "#5D4EFF"))
                         }
-                        .disabled(viewModel.categories.isEmpty)
+                        .disabled(viewModel.categoryModels.isEmpty)
                         
                         Spacer()
                         
@@ -208,7 +209,7 @@ struct CategoryListView: View {
                         .fontWeight(isEditMode ? .semibold : .regular)
                         .foregroundColor(Color(hex: "#5D4EFF"))
                 }
-                .disabled(viewModel.categories.isEmpty)
+                .disabled(viewModel.categoryModels.isEmpty)
             }
             
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -228,7 +229,7 @@ struct CategoryListView: View {
             .onDisappear {
                 // Force refresh when sheet is dismissed
                 DispatchQueue.main.async {
-                    viewModel.loadCategories()
+                    viewModel.refreshData()
                 }
             }
         }
@@ -240,12 +241,12 @@ struct CategoryListView: View {
             .onDisappear {
                 // Force refresh when sheet is dismissed
                 DispatchQueue.main.async {
-                    viewModel.loadCategories()
+                    viewModel.refreshData()
                 }
             }
         }
         .overlay {
-            if !viewModel.isLoading && viewModel.categories.isEmpty {
+            if !viewModel.isLoading && viewModel.categoryModels.isEmpty {
                 ContentUnavailableView(
                     "No Categories",
                     systemImage: "folder.badge.plus",
@@ -261,7 +262,7 @@ struct CategoryListView: View {
         }
         // No need for manual observers anymore as the ViewModel handles that internally
         .refreshable {
-            viewModel.loadCategories()
+            viewModel.refreshData()
         }
     }
     

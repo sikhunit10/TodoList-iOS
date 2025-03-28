@@ -81,6 +81,11 @@ class CategoryViewModel: ObservableObject {
     
     // MARK: - Data Refreshing
     
+    /// Force refresh the data
+    func forceRefresh() {
+        refreshData()
+    }
+    
     /// Refresh data from Core Data and update UI models
     func refreshData() {
         isLoading = true
