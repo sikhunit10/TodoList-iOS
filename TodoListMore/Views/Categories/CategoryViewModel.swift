@@ -62,8 +62,11 @@ class CategoryViewModel: ObservableObject {
         do {
             let fetchedCategories = try context.fetch(fetchRequest)
             DispatchQueue.main.async { [weak self] in
-                self?.categories = fetchedCategories
-                self?.isLoading = false
+                // Wrap the update in a withAnimation block to ensure smooth transitions
+                withAnimation(.smooth) {
+                    self?.categories = fetchedCategories
+                    self?.isLoading = false
+                }
             }
         } catch {
             print("Error fetching categories: \(error.localizedDescription)")
@@ -99,7 +102,7 @@ class CategoryViewModel: ObservableObject {
                 // Explicitly refresh the context to get the latest data
                 self.context.refreshAllObjects()
                 
-                // Force reload categories
+                // Force reload categories with animation
                 self.loadCategories()
                 
                 // Notify listeners of the specific category ID that was updated
@@ -113,12 +116,6 @@ class CategoryViewModel: ObservableObject {
                 NotificationCenter.default.post(name: .dataDidChange, object: nil)
             }
             
-            // Also try a delayed update in case UI needs time to process
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                self.objectWillChange.send()
-                self.loadCategories()
-            }
-            
             return true
         }
         return false
@@ -126,8 +123,10 @@ class CategoryViewModel: ObservableObject {
     
     /// Delete a category
     func deleteCategory(_ category: Category) {
-        dataController.delete(category)
-        loadCategories()
+        withAnimation(.smooth) {
+            dataController.delete(category)
+            loadCategories()
+        }
     }
     
     /// Get the count of tasks for a category

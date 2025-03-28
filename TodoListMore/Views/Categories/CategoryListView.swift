@@ -91,6 +91,7 @@ struct CategoryListView: View {
             }
             
             List {
+                // Apply animation to the entire list content
                 if viewModel.isLoading {
                     // Show placeholders while loading
                     ForEach(0..<3) { index in
@@ -175,10 +176,13 @@ struct CategoryListView: View {
                                 editingCategoryId = categoryId
                             }
                         }
+                        .id(category.id) // Use stable ID for animations
+                        .transition(.opacity.combined(with: .move(edge: .leading)))
                     }
                 }
             }
             .listStyle(.insetGrouped)
+            .animation(.smooth, value: viewModel.categories)
         }
         .navigationTitle("Categories")
         .searchable(text: $viewModel.searchText, prompt: "Search categories")
@@ -265,16 +269,17 @@ struct CategoryListView: View {
     // MARK: - Private Methods
     
     private func deleteCategory(_ category: Category) {
-        withAnimation {
+        withAnimation(.smooth) {
             viewModel.deleteCategory(category)
         }
     }
     
     private func deleteSelectedCategories() {
-        withAnimation(.spring(dampingFraction: 0.7)) {
+        withAnimation(.smooth) {
             // Find all categories with matching IDs and delete them
             for categoryId in selectedCategoryIds {
                 if let categoryToDelete = viewModel.categories.first(where: { $0.id == categoryId }) {
+                    // We don't need to wrap this in another animation since the method already has animation
                     viewModel.deleteCategory(categoryToDelete)
                 }
             }
