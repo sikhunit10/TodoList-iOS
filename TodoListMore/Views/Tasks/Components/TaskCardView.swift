@@ -87,8 +87,7 @@ struct TaskCardView: View {
         .contentShape(Rectangle())
         // Styling for completed tasks
         .opacity(isCompleted ? 0.85 : 1.0)
-        // Slight scale effect on completed items
-        .scaleEffect(isCompleted ? 0.98 : 1.0)
+        // Remove scale effect that was causing width issues
         // Add subtle animation to state changes
         .animation(.easeInOut(duration: 0.2), value: isCompleted)
     }
