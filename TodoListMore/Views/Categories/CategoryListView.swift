@@ -177,13 +177,8 @@ struct CategoryListView: View {
                             }
                         }
                         .id(category.id) // Use stable ID for animations
-                        .matchedGeometryEffect(id: category.id, in: NamespaceWrapper.namespace)
-                        .transition(
-                            AnyTransition.asymmetric(
-                                insertion: .opacity.combined(with: .slide),
-                                removal: .opacity.combined(with: .slide)
-                            ).animation(.interactiveSpring(response: 0.3, dampingFraction: 0.7))
-                        )
+                        // .matchedGeometryEffect can sometimes cause issues, let's use simpler animations
+                        .transition(.opacity.combined(with: .move(edge: .leading)))
                     }
                 }
             }
@@ -258,14 +253,35 @@ struct CategoryListView: View {
                 viewModel.loadCategories()
             }
             
+            // Setup notification observers for data changes
+            NotificationCenter.default.addObserver(
+                forName: .dataDidChange,
+                object: nil,
+                queue: .main
+            ) { [weak viewModel] _ in
+                viewModel?.loadCategories()
+            }
+            
+            NotificationCenter.default.addObserver(
+                forName: .categoryUpdated,
+                object: nil,
+                queue: .main
+            ) { [weak viewModel] _ in
+                viewModel?.loadCategories()
+            }
+            
             // Also set up a listener for app becoming active
-            NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
-                viewModel.loadCategories()
+            NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak viewModel] _ in
+                viewModel?.loadCategories()
             }
         }
         .onDisappear {
-            // Remove notification observer when view disappears
-            NotificationCenter.default.removeObserver(self, name: UIApplication.didBecomeActiveNotification, object: nil)
+            // Remove all notification observers when view disappears
+            NotificationCenter.default.removeObserver(self)
         }
         .refreshable {
             viewModel.loadCategories()

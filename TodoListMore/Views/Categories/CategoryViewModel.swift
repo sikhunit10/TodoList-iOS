@@ -50,17 +50,14 @@ class CategoryViewModel: ObservableObject {
     
     /// Load all categories
     func loadCategories() {
-        // Skip if we're already updating to prevent flashing
-        if isUpdating {
-            return
+        // We'll set a short timeout to reset the isUpdating flag in case something goes wrong
+        let timeoutTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
+            self?.isUpdating = false
         }
         
+        // Set loading state based on whether we have data already
+        isLoading = categories.isEmpty
         isUpdating = true
-        
-        // Only set loading to true if we don't have categories yet
-        if categories.isEmpty {
-            isLoading = true
-        }
         
         let fetchRequest = Category.fetchRequest()
         
@@ -73,32 +70,28 @@ class CategoryViewModel: ObservableObject {
         fetchRequest.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
         
         do {
-            // Cache the existing categories to compare
-            let existingIds = Set(categories.compactMap { $0.id })
+            // Always fetch the latest categories
             let fetchedCategories = try context.fetch(fetchRequest)
-            let newIds = Set(fetchedCategories.compactMap { $0.id })
             
-            // Only update the UI if there's an actual change (addition, removal, or order change)
-            let categoryChange = existingIds != newIds || 
-                                categories.count != fetchedCategories.count ||
-                                !categories.elementsEqual(fetchedCategories, by: { $0.id == $1.id })
-            
-            if categoryChange {
-                DispatchQueue.main.async { [weak self] in
-                    self?.categories = fetchedCategories
-                    self?.isLoading = false
-                    self?.isUpdating = false
-                }
-            } else {
-                // No real change, just silently update
-                DispatchQueue.main.async { [weak self] in
-                    self?.isLoading = false
-                    self?.isUpdating = false
-                }
+            // Always update on the main thread
+            DispatchQueue.main.async { [weak self] in
+                // Cancel the timeout timer since we completed normally
+                timeoutTimer.invalidate()
+                
+                // Always update the categories to ensure changes are reflected
+                self?.categories = fetchedCategories
+                self?.isLoading = false
+                self?.isUpdating = false
+                
+                // Force UI update
+                self?.objectWillChange.send()
             }
         } catch {
             print("Error fetching categories: \(error.localizedDescription)")
             DispatchQueue.main.async { [weak self] in
+                // Cancel the timeout timer
+                timeoutTimer.invalidate()
+                
                 self?.isLoading = false
                 self?.isUpdating = false
             }
@@ -110,8 +103,10 @@ class CategoryViewModel: ObservableObject {
         guard !name.isEmpty else { return false }
         
         if let _ = dataController.addCategory(name: name, colorHex: colorHex) {
-            // DataController.addCategory will post notifications which we're already
-            // observing in the initializer
+            // Force a reload to update the list
+            DispatchQueue.main.async {
+                self.loadCategories()
+            }
             return true
         }
         return false
@@ -122,9 +117,10 @@ class CategoryViewModel: ObservableObject {
         guard id != UUID() else { return false }
         
         if dataController.updateCategory(id: id, name: name, colorHex: colorHex) {
-            // We don't need to do anything here, as the DataController is already
-            // posting the correct notifications, and we're listening for .dataDidChange
-            // in this class's initializer
+            // Force a reload to update the list
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.loadCategories()
+            }
             return true
         }
         return false
@@ -132,10 +128,12 @@ class CategoryViewModel: ObservableObject {
     
     /// Delete a category
     func deleteCategory(_ category: Category) {
-        // DataController.delete will already post the dataDidChange notification
-        // which we're observing in the initializer
         dataController.delete(category)
-        // No need to call loadCategories() as we're already listening for changes
+        
+        // Force a reload to update the list
+        DispatchQueue.main.async {
+            self.loadCategories()
+        }
     }
     
     /// Get the count of tasks for a category
