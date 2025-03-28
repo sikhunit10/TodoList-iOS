@@ -91,16 +91,34 @@ class CategoryViewModel: ObservableObject {
         guard id != UUID() else { return false }
         
         if dataController.updateCategory(id: id, name: name, colorHex: colorHex) {
-            // Force UI update
-            self.objectWillChange.send() 
-            loadCategories()
+            // Immediately force a UI update
+            DispatchQueue.main.async {
+                // Force UI update
+                self.objectWillChange.send()
+                
+                // Explicitly refresh the context to get the latest data
+                self.context.refreshAllObjects()
+                
+                // Force reload categories
+                self.loadCategories()
+                
+                // Notify listeners of the specific category ID that was updated
+                NotificationCenter.default.post(
+                    name: .categoryUpdated,
+                    object: nil,
+                    userInfo: ["categoryId": id]
+                )
+                
+                // Also post general data change notification
+                NotificationCenter.default.post(name: .dataDidChange, object: nil)
+            }
             
-            // Notify listeners of the specific category ID that was updated
-            NotificationCenter.default.post(
-                name: .categoryUpdated,
-                object: nil,
-                userInfo: ["categoryId": id]
-            )
+            // Also try a delayed update in case UI needs time to process
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.objectWillChange.send()
+                self.loadCategories()
+            }
+            
             return true
         }
         return false

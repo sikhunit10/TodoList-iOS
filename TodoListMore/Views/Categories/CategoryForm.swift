@@ -64,6 +64,13 @@ struct CategoryForm: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
                     let success = saveCategory()
+                    
+                    // Force UI to update immediately after save
+                    DispatchQueue.main.async {
+                        // Post notification that data has changed to all views that need updating
+                        NotificationCenter.default.post(name: .dataDidChange, object: nil)
+                    }
+                    
                     dismiss()
                 }
                 .disabled(name.isEmpty || isLoading)

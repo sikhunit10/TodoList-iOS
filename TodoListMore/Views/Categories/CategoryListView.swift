@@ -23,6 +23,7 @@ struct CategoryListView: View {
     
     init() {
         // Create the view model using StateObject for proper lifecycle management
+        // We need to use DataController.shared to ensure we're using the same instance across the app
         let vm = CategoryViewModel(
             context: DataController.shared.container.viewContext, 
             dataController: DataController.shared
@@ -213,12 +214,24 @@ struct CategoryListView: View {
                 CategoryForm(mode: .add, viewModel: viewModel)
             }
             .presentationDetents([.medium])
+            .onDisappear {
+                // Force refresh when sheet is dismissed
+                DispatchQueue.main.async {
+                    viewModel.loadCategories()
+                }
+            }
         }
         .sheet(item: $editingCategoryId) { categoryId in
             NavigationStack {
                 CategoryForm(mode: .edit(categoryId), viewModel: viewModel)
             }
             .presentationDetents([.medium])
+            .onDisappear {
+                // Force refresh when sheet is dismissed
+                DispatchQueue.main.async {
+                    viewModel.loadCategories()
+                }
+            }
         }
         .overlay {
             if !viewModel.isLoading && viewModel.categories.isEmpty {
@@ -230,7 +243,19 @@ struct CategoryListView: View {
             }
         }
         .onAppear {
-            viewModel.loadCategories()
+            // Force a full refresh every time the view appears
+            DispatchQueue.main.async {
+                viewModel.loadCategories()
+            }
+            
+            // Also set up a listener for app becoming active
+            NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
+                viewModel.loadCategories()
+            }
+        }
+        .onDisappear {
+            // Remove notification observer when view disappears
+            NotificationCenter.default.removeObserver(self, name: UIApplication.didBecomeActiveNotification, object: nil)
         }
         .refreshable {
             viewModel.loadCategories()
