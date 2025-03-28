@@ -91,7 +91,6 @@ struct CategoryListView: View {
             }
             
             List {
-                // Apply animation to the entire list content
                 if viewModel.isLoading {
                     // Show placeholders while loading
                     ForEach(0..<3) { index in
@@ -177,13 +176,19 @@ struct CategoryListView: View {
                             }
                         }
                         .id(category.id) // Use stable ID for animations
-                        // .matchedGeometryEffect can sometimes cause issues, let's use simpler animations
-                        .transition(.opacity.combined(with: .move(edge: .leading)))
+                        .transition(.asymmetric(
+                            insertion: .scale.combined(with: .opacity),
+                            removal: .opacity
+                        ))
+                    }
+                    .onMove { indices, newOffset in
+                        // This enables iOS to handle the animation automatically
                     }
                 }
             }
             .listStyle(.insetGrouped)
-            .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.8), value: viewModel.categories)
+            // Use animation modifier directly at the list level for categories
+            .animation(.easeInOut(duration: 0.2), value: viewModel.categories)
         }
         .navigationTitle("Categories")
         .searchable(text: $viewModel.searchText, prompt: "Search categories")
@@ -248,41 +253,12 @@ struct CategoryListView: View {
             }
         }
         .onAppear {
-            // Force a full refresh every time the view appears
+            // Force refresh when view appears - this will trigger the refresh timer
             DispatchQueue.main.async {
-                viewModel.loadCategories()
-            }
-            
-            // Setup notification observers for data changes
-            NotificationCenter.default.addObserver(
-                forName: .dataDidChange,
-                object: nil,
-                queue: .main
-            ) { [weak viewModel] _ in
-                viewModel?.loadCategories()
-            }
-            
-            NotificationCenter.default.addObserver(
-                forName: .categoryUpdated,
-                object: nil,
-                queue: .main
-            ) { [weak viewModel] _ in
-                viewModel?.loadCategories()
-            }
-            
-            // Also set up a listener for app becoming active
-            NotificationCenter.default.addObserver(
-                forName: UIApplication.didBecomeActiveNotification,
-                object: nil,
-                queue: .main
-            ) { [weak viewModel] _ in
-                viewModel?.loadCategories()
+                viewModel.forceRefresh()
             }
         }
-        .onDisappear {
-            // Remove all notification observers when view disappears
-            NotificationCenter.default.removeObserver(self)
-        }
+        // No need for manual observers anymore as the ViewModel handles that internally
         .refreshable {
             viewModel.loadCategories()
         }
@@ -328,13 +304,15 @@ struct CategoryRow: View {
             Circle()
                 .fill(Color(hex: category.categoryColorHex))
                 .frame(width: 16, height: 16)
-                // Add some animation easing to the color
-                .animation(.easeInOut, value: category.categoryColorHex)
+                // Ensure the color animates smoothly
+                .animation(.default, value: category.categoryColorHex)
             
             Text(category.categoryName)
                 .fontWeight(.medium)
-                // Add identity transition to prevent text flicker
+                // Prevent text flicker during transitions
                 .contentTransition(.identity)
+                // Force no text animation (prevents jumping)
+                .animation(nil, value: category.categoryName)
             
             Spacer()
             
@@ -347,9 +325,13 @@ struct CategoryRow: View {
                 .cornerRadius(10)
                 // Fix the size to prevent jumping during animations
                 .fixedSize()
+                // Make sure the count doesn't animate
+                .animation(nil, value: tasksCount)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
+        // Make the row animate as a unit
+        .transition(.opacity)
     }
 }
 
