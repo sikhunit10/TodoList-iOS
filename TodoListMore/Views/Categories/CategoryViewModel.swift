@@ -194,7 +194,7 @@ class CategoryViewModel: ObservableObject {
 
 // Helper extension for creating CategoryUIModel directly
 extension CategoryUIModel {
-    init(from id: UUID, name: String, colorHex: String, taskCount: Int) {
+    init(id: UUID, name: String, colorHex: String, taskCount: Int) {
         self.id = id
         self.name = name
         self.colorHex = colorHex
