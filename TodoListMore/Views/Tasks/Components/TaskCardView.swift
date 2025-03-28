@@ -28,14 +28,7 @@ struct TaskCardView: View {
         let dueDate = task.dueDate
         let dateCreated = task.dateCreated
         
-        // Force load fresh category data every time view is rendered
-        if let category = task.category {
-            // Get latest category data each time the view renders
-            categoryName = category.name ?? "Uncategorized"
-            categoryColorHex = category.colorHex ?? "#5D4EFF"
-        }
-        
-        // Use our stored category data
+        // Get category data from our @State variables
         let categoryColor = Color(hex: categoryColorHex)
         
         // Get gradient based on priority
@@ -104,13 +97,22 @@ struct TaskCardView: View {
         .onReceive(NotificationCenter.default.publisher(for: .dataDidChange)) { _ in
             // Force refresh when data changes notification is received
             DispatchQueue.main.async {
-                task.managedObjectContext?.refresh(task, mergeChanges: true)
+                if let context = task.managedObjectContext {
+                    context.refresh(task, mergeChanges: true)
+                    if let category = task.category {
+                        context.refresh(category, mergeChanges: true)
+                    }
+                }
                 refreshID = UUID() // Change the ID to force refresh
                 loadCategoryData() // Reload category data
             }
         }
         .onAppear {
             // Load category data when the view appears
+            loadCategoryData()
+        }
+        // This onChange ensures we update our state when the task's category changes
+        .onChange(of: task.category) { newCategory in
             loadCategoryData()
         }
     }
