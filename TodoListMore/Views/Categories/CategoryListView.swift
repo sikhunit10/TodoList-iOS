@@ -465,22 +465,41 @@ struct CategoryForm: View {
     
     private func saveCategory() -> Bool {
         var success = false
+        var categoryId: UUID? = nil
         
         switch mode {
         case .add:
-            if let _ = dataController.addCategory(
+            if let newCategory = dataController.addCategory(
                 name: name,
                 colorHex: predefinedColors[selectedColorIndex]
-            ) {
+            ) as? NSManagedObject {
                 success = true
+                categoryId = newCategory.value(forKey: "id") as? UUID
             }
             
-        case .edit(let categoryId):
+        case .edit(let id):
             success = dataController.updateCategory(
-                id: categoryId,
+                id: id,
                 name: name,
                 colorHex: predefinedColors[selectedColorIndex]
             )
+            categoryId = id
+        }
+        
+        // Force immediate UI refresh after saving
+        if success {
+            // Post notification immediately
+            NotificationCenter.default.post(name: .dataDidChange, object: nil)
+            
+            // Also refresh after a small delay to ensure CoreData has processed changes
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                NotificationCenter.default.post(name: .dataDidChange, object: nil)
+            }
+            
+            // And again after a slightly longer delay for UI animations
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                NotificationCenter.default.post(name: .dataDidChange, object: nil)
+            }
         }
         
         return success

@@ -11,8 +11,13 @@ import CoreData
 struct TaskCardView: View {
     let task: Task
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject private var dataController: DataController
     @State private var refreshID = UUID() // Used to force refresh the view
+    
+    // Store these as @State to force updates when they change
+    @State private var categoryName: String = "Uncategorized"
+    @State private var categoryColorHex: String = "#5D4EFF"
     
     var body: some View {
         // Get task properties directly using the entity properties
@@ -23,11 +28,15 @@ struct TaskCardView: View {
         let dueDate = task.dueDate
         let dateCreated = task.dateCreated
         
-        // Category data
-        let category = task.category
-        let categoryName = category?.name ?? "Uncategorized"
-        let colorHex = category?.colorHex ?? "#5D4EFF"  // Vivid purple color instead of gray for better visibility
-        let categoryColor = Color(hex: colorHex)
+        // Force load fresh category data every time view is rendered
+        if let category = task.category {
+            // Get latest category data each time the view renders
+            categoryName = category.name ?? "Uncategorized"
+            categoryColorHex = category.colorHex ?? "#5D4EFF"
+        }
+        
+        // Use our stored category data
+        let categoryColor = Color(hex: categoryColorHex)
         
         // Get gradient based on priority
         let gradientColors = TaskStyleUtils.priorityGradient(priority: priority)
@@ -97,7 +106,28 @@ struct TaskCardView: View {
             DispatchQueue.main.async {
                 task.managedObjectContext?.refresh(task, mergeChanges: true)
                 refreshID = UUID() // Change the ID to force refresh
+                loadCategoryData() // Reload category data
             }
+        }
+        .onAppear {
+            // Load category data when the view appears
+            loadCategoryData()
+        }
+    }
+    
+    // Function to load and update category data
+    private func loadCategoryData() {
+        if let category = task.category {
+            // Refresh the category object to get the latest data
+            task.managedObjectContext?.refresh(category, mergeChanges: true)
+            
+            // Update our state variables with the fresh data
+            categoryName = category.name ?? "Uncategorized"
+            categoryColorHex = category.colorHex ?? "#5D4EFF"
+        } else {
+            // Reset to defaults if there's no category
+            categoryName = "Uncategorized"
+            categoryColorHex = "#5D4EFF"
         }
     }
 }

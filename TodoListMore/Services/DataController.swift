@@ -224,7 +224,28 @@ class DataController: ObservableObject {
                 category.setValue(colorHex, forKey: "colorHex")
             }
             
+            // First notify about the change
+            objectWillChange.send()
+            
+            // Before saving, find all tasks that use this category and refresh them
+            if let categoryTasks = category.value(forKey: "tasks") as? NSSet {
+                for case let task as NSManagedObject in categoryTasks {
+                    context.refresh(task, mergeChanges: true)
+                }
+            }
+            
+            // Save changes
             save()
+            
+            // Force immediate UI update via notification
+            NotificationCenter.default.post(name: .dataDidChange, object: nil)
+            
+            // Add a delay to ensure changes propagate
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.objectWillChange.send()
+                NotificationCenter.default.post(name: .dataDidChange, object: nil)
+            }
+            
             return true
         } catch {
             print("Error updating category: \(error.localizedDescription)")
