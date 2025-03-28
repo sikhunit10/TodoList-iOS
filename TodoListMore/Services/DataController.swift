@@ -8,6 +8,11 @@
 import CoreData
 import SwiftUI
 
+// Define a notification name for data changes
+extension Notification.Name {
+    static let dataDidChange = Notification.Name("dataDidChange")
+}
+
 class DataController: ObservableObject {
     static let shared = DataController()
     
@@ -41,12 +46,17 @@ class DataController: ObservableObject {
                 // After successful save, ensure all UI elements have the most current data
                 objectWillChange.send()
                 
-                // Also refresh to ensure changes propagate to all views
+                // Refresh all objects to ensure changes propagate to all views
                 container.viewContext.refreshAllObjects()
+                
+                // Post a notification that data has changed
+                NotificationCenter.default.post(name: .dataDidChange, object: nil)
                 
                 // Add a small delay to ensure UI can update
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     self.objectWillChange.send()
+                    // Post another notification after delay for views that may need to update later
+                    NotificationCenter.default.post(name: .dataDidChange, object: nil)
                 }
             } catch {
                 print("Error saving context: \(error.localizedDescription)")

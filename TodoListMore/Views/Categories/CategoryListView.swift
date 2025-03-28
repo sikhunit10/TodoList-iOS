@@ -233,6 +233,11 @@ struct CategoryListView: View {
         .refreshable {
             loadCategories()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .dataDidChange)) { _ in
+            DispatchQueue.main.async {
+                loadCategories()
+            }
+        }
     }
     
     // MARK: - Private Methods
@@ -415,6 +420,10 @@ struct CategoryForm: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
                     let success = saveCategory()
+                    
+                    // Post notification that data has changed to all views that need updating
+                    NotificationCenter.default.post(name: .dataDidChange, object: nil)
+                    
                     dismiss()
                 }
                 .disabled(name.isEmpty || isLoading)

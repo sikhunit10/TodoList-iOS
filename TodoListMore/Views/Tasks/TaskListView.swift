@@ -317,6 +317,13 @@ struct TaskListView: View {
         .onChange(of: completedTasksVisible) { _ in
             updateFetchRequest()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .dataDidChange)) { _ in
+            // Refresh data when category or other data changes
+            DispatchQueue.main.async {
+                viewContext.refreshAllObjects()
+                updateFetchRequest()
+            }
+        }
     }
     
     // Custom Segmented Control (Simplified)

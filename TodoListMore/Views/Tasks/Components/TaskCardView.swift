@@ -12,6 +12,7 @@ struct TaskCardView: View {
     let task: Task
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var dataController: DataController
+    @State private var refreshID = UUID() // Used to force refresh the view
     
     var body: some View {
         // Get task properties directly using the entity properties
@@ -90,6 +91,14 @@ struct TaskCardView: View {
         // Remove scale effect that was causing width issues
         // Add subtle animation to state changes
         .animation(.easeInOut(duration: 0.2), value: isCompleted)
+        .id(refreshID) // Use the refreshID to force the view to redraw
+        .onReceive(NotificationCenter.default.publisher(for: .dataDidChange)) { _ in
+            // Force refresh when data changes notification is received
+            DispatchQueue.main.async {
+                task.managedObjectContext?.refresh(task, mergeChanges: true)
+                refreshID = UUID() // Change the ID to force refresh
+            }
+        }
     }
 }
 
