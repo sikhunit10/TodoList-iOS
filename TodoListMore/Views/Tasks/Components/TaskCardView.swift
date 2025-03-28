@@ -53,7 +53,7 @@ struct TaskCardView: View {
                 Spacer()
             }
             
-            // Content with proper spacing
+            // Content with reduced spacing - simplified structure
             VStack(alignment: .leading, spacing: 0) {
                 // Header with title and status
                 TaskCardHeaderView(
@@ -66,10 +66,10 @@ struct TaskCardView: View {
                     categoryColor: categoryColor,
                     gradientColors: gradientColors
                 )
+                .padding(.top, 2) // Minimal top padding
                 
-                // Visual spacer with no lines
-                Color.clear
-                    .frame(height: 16)
+                // Small fixed spacing
+                Color.clear.frame(height: 4)
                 
                 // Footer with metadata
                 TaskCardFooterView(
@@ -78,9 +78,10 @@ struct TaskCardView: View {
                     categoryName: categoryName,
                     categoryColor: categoryColor
                 )
+                .padding(.bottom, 2) // Minimal bottom padding
             }
         }
-        .frame(height: description.isEmpty ? 116 : 136)
+        .frame(height: description.isEmpty ? 90 : 110) // Further reduced height
         .padding(.horizontal, 4)
         .padding(.vertical, 0)
         .contentShape(Rectangle())
@@ -157,8 +158,8 @@ struct TaskCardHeaderView: View {
                     .shadow(color: gradientColors[0].opacity(0.3), radius: 2, x: 0, y: 1)
             }
         }
-        .padding(.top, 14)
         .padding(.horizontal, 16)
+        .padding(.vertical, 0)
         
         // Show a snippet of the description if available
         if !description.isEmpty {
@@ -190,7 +191,7 @@ struct TaskCardFooterView: View {
     
     var body: some View {
         // Use VStack for smaller screens to avoid truncation
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) { // Reduced vertical spacing
             HStack(spacing: 0) { // Reduced spacing between elements
                 // Due date chip - using custom date format instead of .date style
                 if let dueDate = dueDate {
@@ -247,6 +248,5 @@ struct TaskCardFooterView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, 14)
     }
 }
