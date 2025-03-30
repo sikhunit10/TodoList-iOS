@@ -53,25 +53,6 @@ A feature-rich task management application built with SwiftUI and CoreData for i
 - Xcode 14.0+
 - Swift 5.7+
 
-## Implementation Details
-
-### Core Data Model
-The app uses two main entities:
-- **Task**: Stores task information including title, description, priority, completion status, due date, and creation/modification timestamps
-- **Category**: Defines categories with names and color codes that can be assigned to tasks
-
-### Performance Optimizations
-- Background context for heavy database operations
-- Batch delete operations for completed tasks
-- Optimized fetching with predicate-based filtering
-- Real-time UI updates through Combine publishers
-
-### User Interface
-- Custom task cards with visual priority indicators
-- Animated transitions and micro-interactions
-- iOS-native navigation styles and appearances
-- Optimized forms with intuitive input methods
-
 ## Getting Started
 
 1. Clone the repository
