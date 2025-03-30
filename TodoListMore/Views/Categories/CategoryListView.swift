@@ -64,7 +64,7 @@ struct CategoryListView: View {
                         
                         Text(isAllSelected ? "Deselect All" : "Select All")
                             .font(.system(size: 15))
-                            .foregroundColor(Color(hex: "#5D4EFF"))
+                            .foregroundColor(AppTheme.accentColor)
                     }
                     .disabled(viewModel.categoryModels.isEmpty)
                     
@@ -131,7 +131,7 @@ struct CategoryListView: View {
                                 Spacer()
                                 Image(systemName: "checkmark")
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(Color(hex: "#5D4EFF"))
+                                    .foregroundColor(AppTheme.accentColor)
                                     .transition(.opacity)
                                     .padding(.trailing, 4)
                             }
@@ -155,7 +155,7 @@ struct CategoryListView: View {
                             {
                                 let isSelected = isEditMode && selectedCategoryIds.contains(categoryModel.id)
                                 if isSelected {
-                                    return Color(hex: "#5D4EFF").opacity(0.15)
+                                    return AppTheme.accentColor.opacity(0.15)
                                 } else {
                                     return Color(UIColor.secondarySystemGroupedBackground)
                                 }
@@ -222,10 +222,10 @@ struct CategoryListView: View {
                     if isEditMode {
                         Image(systemName: "checkmark")
                             .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(Color(hex: "#5D4EFF"))
+                            .foregroundColor(AppTheme.accentColor)
                     } else {
                         Image(systemName: "pencil")
-                            .foregroundColor(Color(hex: "#5D4EFF"))
+                            .foregroundColor(AppTheme.accentColor)
                     }
                 }
                 .disabled(viewModel.categoryModels.isEmpty)

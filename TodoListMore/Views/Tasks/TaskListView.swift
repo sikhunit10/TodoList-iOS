@@ -177,7 +177,7 @@ struct TaskListView: View {
                                         withAnimation {
                                             if let id = task.id {
                                                 dataController.toggleTaskCompletion(id: id)
-                                                viewContext.refreshAllObjects()
+                                                // No need to call refreshAllObjects - handled by notification
                                             }
                                         }
                                     } label: {
@@ -220,7 +220,7 @@ struct TaskListView: View {
                                     if let id = task.id {
                                         withAnimation {
                                             dataController.toggleTaskCompletion(id: id)
-                                            viewContext.refreshAllObjects()
+                                            // No need to call refreshAllObjects - handled by notification
                                         }
                                     }
                                 } label: {
@@ -292,7 +292,7 @@ struct TaskListView: View {
         .sheet(isPresented: $showingAddTask) {
             NavigationStack {
                 TaskFormView(mode: .add, onSave: {
-                    viewContext.refreshAllObjects()
+                    // No need to call refreshAllObjects - handled by notification
                     
                     // Switch to the appropriate tab after adding a new task
                     // to ensure the new task will be visible after creation
@@ -304,7 +304,7 @@ struct TaskListView: View {
         .sheet(item: $selectedTaskId) { taskId in
             NavigationStack {
                 TaskFormView(mode: .edit(taskId), onSave: {
-                    viewContext.refreshAllObjects()
+                    // No need to call refreshAllObjects - handled by notification
                 })
             }
             .presentationDetents([.medium, .large])
@@ -318,10 +318,29 @@ struct TaskListView: View {
         .onChange(of: completedTasksVisible) { _ in
             updateFetchRequest()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .dataDidChange)) { _ in
-            // Refresh data when category or other data changes
+        // Listen for specific task changes
+        .onReceive(NotificationCenter.default.publisher(for: .tasksDidChange)) { notification in
             DispatchQueue.main.async {
-                viewContext.refreshAllObjects()
+                // Selective refresh when possible
+                if let taskId = notification.userInfo?["taskId"] as? UUID,
+                   let task = tasks.first(where: { $0.id == taskId }) {
+                    // Just refresh this specific task
+                    viewContext.refresh(task, mergeChanges: true)
+                } else if notification.userInfo?["batchDelete"] as? Bool == true {
+                    // For batch operations, update the fetch request
+                    updateFetchRequest()
+                }
+            }
+        }
+        // Listen for category changes that might affect task display
+        .onReceive(NotificationCenter.default.publisher(for: .categoriesDidChange)) { _ in
+            DispatchQueue.main.async {
+                updateFetchRequest()
+            }
+        }
+        // Fallback for general data changes
+        .onReceive(NotificationCenter.default.publisher(for: .dataDidChange)) { _ in
+            DispatchQueue.main.async {
                 updateFetchRequest()
             }
         }
@@ -333,7 +352,7 @@ struct TaskListView: View {
         @Environment(\.colorScheme) private var colorScheme
         @Namespace private var namespace
         
-        private let accentColor = Color(hex: "#5D4EFF")
+        private let accentColor = AppTheme.accentColor
         
         var body: some View {
             VStack(spacing: 0) {
@@ -385,13 +404,13 @@ struct TaskListView: View {
                             RoundedRectangle(cornerRadius: 2)
                                 .fill(accentColor)
                                 .frame(height: 2)
-                                .frame(width: 40)
+                                .frame(width: AppTheme.UI.filterIndicatorWidth)
                                 .matchedGeometryEffect(id: "underline", in: namespace)
                         } else {
                             // Keeping this empty spacer for proper alignment
                             Color.clear
                                 .frame(height: 2)
-                                .frame(width: 40)
+                                .frame(width: AppTheme.UI.filterIndicatorWidth)
                         }
                     }
                 }
@@ -415,9 +434,9 @@ struct TaskListView: View {
                     Button(action: action) {
                         ZStack {
                             Circle()
-                                .fill(Color(hex: "#5D4EFF"))
-                                .frame(width: 62, height: 62)
-                                .shadow(color: Color(hex: "#5D4EFF").opacity(colorScheme == .dark ? 0.3 : 0.4), 
+                                .fill(AppTheme.accentColor)
+                                .frame(width: AppTheme.UI.floatingButtonSize, height: AppTheme.UI.floatingButtonSize)
+                                .shadow(color: AppTheme.accentColor.opacity(colorScheme == .dark ? 0.3 : 0.4), 
                                         radius: 8, x: 0, y: 4)
                             
                             Image(systemName: "plus")
@@ -509,7 +528,7 @@ struct TaskListView: View {
     private func deleteTask(_ task: Task) {
         withAnimation {
             dataController.delete(task)
-            viewContext.refreshAllObjects()
+            // No need to call refreshAllObjects - handled by notification
         }
     }
     

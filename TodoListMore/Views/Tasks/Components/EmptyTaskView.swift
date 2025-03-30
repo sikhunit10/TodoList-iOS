@@ -11,7 +11,7 @@ struct EmptyTaskView: View {
     var onAddTask: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     
-    private let accentColor = Color(hex: "#5D4EFF")
+    private let accentColor = AppTheme.accentColor
     
     var body: some View {
         VStack(spacing: 24) {

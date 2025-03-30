@@ -73,7 +73,7 @@ struct TaskCardView: View {
                 .padding(.bottom, 2) // Minimal bottom padding
             }
         }
-        .frame(height: description.isEmpty ? 90 : 130) // Increased height for multi-line description
+        .frame(height: description.isEmpty ? AppTheme.UI.cardHeight : AppTheme.UI.cardHeightWithDescription)
         .padding(.horizontal, 4)
         .padding(.vertical, 0)
         .contentShape(Rectangle())
@@ -99,8 +99,8 @@ struct TaskCardHeaderView: View {
     var body: some View {
         // Get the category color
         let categoryColor = task.category != nil ? 
-            Color(hex: task.category?.colorHex ?? "#5D4EFF") : 
-            Color(hex: "#5D4EFF")
+            Color(hex: task.category?.colorHex ?? AppTheme.accentColor.hex) : 
+            AppTheme.accentColor
             
         HStack(alignment: .center, spacing: 14) {
             // Checkbox with animated press effect
