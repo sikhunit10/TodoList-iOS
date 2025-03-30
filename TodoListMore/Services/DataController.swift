@@ -8,9 +8,11 @@
 import CoreData
 import SwiftUI
 
-// Define a notification name for data changes
+// Define notification names for data changes
 extension Notification.Name {
     static let dataDidChange = Notification.Name("dataDidChange")
+    static let tasksDidChange = Notification.Name("tasksDidChange")
+    static let categoriesDidChange = Notification.Name("categoriesDidChange")
 }
 
 class DataController: ObservableObject {
@@ -38,7 +40,7 @@ class DataController: ObservableObject {
     // MARK: - CRUD Operations
     
     // Save context if changes exist
-    func save() {
+    func save(notificationName: Notification.Name = .dataDidChange, userInfo: [AnyHashable: Any]? = nil) {
         if container.viewContext.hasChanges {
             do {
                 try container.viewContext.save()
@@ -46,15 +48,14 @@ class DataController: ObservableObject {
                 // After successful save, ensure all UI elements have the most current data
                 objectWillChange.send()
                 
-                // Refresh all objects to ensure changes propagate to all views
-                container.viewContext.refreshAllObjects()
+                // Only refresh changed objects, not all objects
+                // This is more efficient than refreshAllObjects()
                 
-                // Post a notification that data has changed - just once, no delayed notification
-                NotificationCenter.default.post(name: .dataDidChange, object: nil)
+                // Post a notification that data has changed with userInfo if provided
+                NotificationCenter.default.post(name: notificationName, object: nil, userInfo: userInfo)
                 
             } catch {
                 print("Error saving context: \(error.localizedDescription)")
-                // Just print the error since we removed the syncStatus
                 print("Failed to save data: \(error.localizedDescription)")
             }
         }
@@ -73,11 +74,11 @@ class DataController: ObservableObject {
         
         // Using string-based Key-Value Coding for safe access to entity
         let task = NSEntityDescription.insertNewObject(forEntityName: "Task", into: context)
-            
+        let taskId = UUID()    
         let now = Date()
         
         // Set values using KVC instead of direct property access
-        task.setValue(UUID(), forKey: "id")
+        task.setValue(taskId, forKey: "id")
         task.setValue(title, forKey: "title")
         task.setValue(description, forKey: "taskDescription")
         task.setValue(dueDate, forKey: "dueDate")
@@ -101,7 +102,8 @@ class DataController: ObservableObject {
             }
         }
         
-        save()
+        // Save with specific notification
+        save(notificationName: .tasksDidChange, userInfo: ["taskId": taskId])
         return task
     }
     
@@ -141,6 +143,8 @@ class DataController: ObservableObject {
                 task.setValue(isCompleted, forKey: "isCompleted")
             }
             
+            var updatedCategoryId: UUID? = nil
+            
             if let categoryId = categoryId {
                 let categoryFetch: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "Category")
                 categoryFetch.predicate = NSPredicate(format: "id == %@", categoryId as CVarArg)
@@ -148,6 +152,7 @@ class DataController: ObservableObject {
                 let categories = try context.fetch(categoryFetch)
                 if let category = categories.first {
                     task.setValue(category, forKey: "category")
+                    updatedCategoryId = categoryId
                 }
             } else if removeCategoryId {
                 task.setValue(nil, forKey: "category")
@@ -155,7 +160,9 @@ class DataController: ObservableObject {
             
             task.setValue(Date(), forKey: "dateModified")
             
-            save()
+            // Save with specific notification
+            let userInfo: [AnyHashable: Any] = ["taskId": id, "categoryId": updatedCategoryId as Any]
+            save(notificationName: .tasksDidChange, userInfo: userInfo)
             return true
         } catch {
             print("Error updating task: \(error.localizedDescription)")
@@ -175,7 +182,8 @@ class DataController: ObservableObject {
                 task.setValue(!currentValue, forKey: "isCompleted")
                 task.setValue(Date(), forKey: "dateModified")
                 
-                save()
+                // Save with specific notification
+                save(notificationName: .tasksDidChange, userInfo: ["taskId": id])
                 return true
             } else {
                 return false
@@ -192,30 +200,35 @@ class DataController: ObservableObject {
         let context = container.viewContext
         
         let category = NSEntityDescription.insertNewObject(forEntityName: "Category", into: context)
+        let categoryId = UUID()
         
-        category.setValue(UUID(), forKey: "id")
+        category.setValue(categoryId, forKey: "id")
         category.setValue(name, forKey: "name")
         category.setValue(colorHex, forKey: "colorHex")
         
-        save()
+        // Save with specific notification
+        save(notificationName: .categoriesDidChange, userInfo: ["categoryId": categoryId])
         return category
     }
     
+    // Background context for category operations - reused instead of creating a new one each time
+    private lazy var categoryContext: NSManagedObjectContext = {
+        let context = container.newBackgroundContext()
+        context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        context.automaticallyMergesChangesFromParent = true
+        return context
+    }()
+    
     func updateCategory(id: UUID, name: String? = nil, colorHex: String? = nil) -> Bool {
-        let context = container.viewContext
-        
-        // Use a background context for the fetch and update
-        let bgContext = container.newBackgroundContext()
-        bgContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-        
         var success = false
         
-        bgContext.performAndWait {
+        // Use our shared background context
+        categoryContext.performAndWait {
             let fetchRequest = NSFetchRequest<Category>(entityName: "Category")
             fetchRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             
             do {
-                let categories = try bgContext.fetch(fetchRequest)
+                let categories = try categoryContext.fetch(fetchRequest)
                 guard let category = categories.first else { 
                     return
                 }
@@ -230,11 +243,11 @@ class DataController: ObservableObject {
                 }
                 
                 // Save in background context
-                try bgContext.save()
+                try categoryContext.save()
                 success = true
                 
             } catch {
-                print("Error updating category in background: \(error.localizedDescription)")
+                print("Error updating category: \(error.localizedDescription)")
             }
         }
         
@@ -247,13 +260,9 @@ class DataController: ObservableObject {
             // Notify that the data model has changed
             self.objectWillChange.send()
             
-            // Refresh all objects to get latest data
-            self.container.viewContext.refreshAllObjects()
-            
-            // Send only one notification - the general data change notification
-            // This avoids duplicate refreshes from multiple observers
+            // Send targeted notification instead of refreshing all objects
             NotificationCenter.default.post(
-                name: .dataDidChange, 
+                name: .categoriesDidChange, 
                 object: nil, 
                 userInfo: ["categoryId": id]
             )
@@ -265,25 +274,46 @@ class DataController: ObservableObject {
     // MARK: - Batch Operations
     
     func deleteAllCompletedTasks() -> Int {
-        let context = container.viewContext
-        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Task")
-        fetchRequest.predicate = NSPredicate(format: "isCompleted == %@", NSNumber(value: true))
+        // Use a background context for batch delete operation
+        let bgContext = container.newBackgroundContext()
+        var deletedCount = 0
         
-        let batchDeleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
-        batchDeleteRequest.resultType = .resultTypeObjectIDs
-        
-        do {
-            let result = try context.execute(batchDeleteRequest) as? NSBatchDeleteResult
-            let objectIDs = result?.result as? [NSManagedObjectID] ?? []
+        bgContext.performAndWait {
+            let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Task")
+            fetchRequest.predicate = NSPredicate(format: "isCompleted == %@", NSNumber(value: true))
             
-            // Merge changes into view context
-            let changes = [NSDeletedObjectsKey: objectIDs]
-            NSManagedObjectContext.mergeChanges(fromRemoteContextSave: changes, into: [context])
+            let batchDeleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+            batchDeleteRequest.resultType = .resultTypeObjectIDs
             
-            return objectIDs.count
-        } catch {
-            print("Error deleting completed tasks: \(error.localizedDescription)")
-            return 0
+            do {
+                let result = try bgContext.execute(batchDeleteRequest) as? NSBatchDeleteResult
+                let objectIDs = result?.result as? [NSManagedObjectID] ?? []
+                
+                // Merge changes into both contexts
+                let changes = [NSDeletedObjectsKey: objectIDs]
+                NSManagedObjectContext.mergeChanges(fromRemoteContextSave: changes, into: [container.viewContext, bgContext])
+                
+                deletedCount = objectIDs.count
+                
+                // Notify of batch change
+                if deletedCount > 0 {
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self = self else { return }
+                        self.objectWillChange.send()
+                        
+                        // Send general task change notification
+                        NotificationCenter.default.post(
+                            name: .tasksDidChange,
+                            object: nil,
+                            userInfo: ["batchDelete": true]
+                        )
+                    }
+                }
+            } catch {
+                print("Error deleting completed tasks: \(error.localizedDescription)")
+            }
         }
+        
+        return deletedCount
     }
 }
