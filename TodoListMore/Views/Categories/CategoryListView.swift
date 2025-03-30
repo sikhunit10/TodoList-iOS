@@ -24,29 +24,44 @@ struct CategoryListView: View {
     init() {
         // Create the view model using StateObject for proper lifecycle management
         // We need to use DataController.shared to ensure we're using the same instance across the app
+        let sharedController = DataController.shared
+        let viewContext = sharedController.container.viewContext
+        
         let vm = CategoryViewModel(
-            context: DataController.shared.container.viewContext, 
-            dataController: DataController.shared
+            context: viewContext, 
+            dataController: sharedController
         )
         _viewModel = StateObject(wrappedValue: vm)
     }
     
     var body: some View {
-        VStack(spacing: isEditMode ? 8 : 0) {
+        // Create complex expression components separately
+        let spacing: CGFloat = isEditMode ? 8 : 0
+        
+        VStack(spacing: spacing) {
             // iOS-native edit mode header - only show when in edit mode, no dividers
             if isEditMode {
                 HStack {
                     // Left action: Select All / Deselect All
                     Button(action: {
                         withAnimation {
-                            if selectedCategoryIds.count == viewModel.categoryModels.count && !viewModel.categoryModels.isEmpty {
+                            let modelsCount = viewModel.categoryModels.count
+                            let selectedCount = selectedCategoryIds.count
+                            let isEmpty = viewModel.categoryModels.isEmpty
+                            
+                            if selectedCount == modelsCount && !isEmpty {
                                 selectedCategoryIds.removeAll()
                             } else {
-                                selectedCategoryIds = Set(viewModel.categoryModels.map { $0.id })
+                                let allIds = viewModel.categoryModels.map { $0.id }
+                                selectedCategoryIds = Set(allIds)
                             }
                         }
                     }) {
-                        let isAllSelected = selectedCategoryIds.count == viewModel.categoryModels.count && !viewModel.categoryModels.isEmpty
+                        let modelsCount = viewModel.categoryModels.count
+                        let selectedCount = selectedCategoryIds.count
+                        let isEmpty = viewModel.categoryModels.isEmpty
+                        let isAllSelected = selectedCount == modelsCount && !isEmpty
+                        
                         Text(isAllSelected ? "Deselect All" : "Select All")
                             .font(.system(size: 15))
                             .foregroundColor(Color(hex: "#5D4EFF"))
@@ -57,7 +72,9 @@ struct CategoryListView: View {
                     
                     // Selected count indicator
                     if selectedCategoryIds.count > 0 {
-                        Text("\(selectedCategoryIds.count) item\(selectedCategoryIds.count > 1 ? "s" : "") selected")
+                        let count = selectedCategoryIds.count
+                        let suffix = count > 1 ? "s" : ""
+                        Text("\(count) item\(suffix) selected")
                             .font(.system(size: 15))
                             .foregroundColor(.secondary)
                     }
@@ -115,7 +132,7 @@ struct CategoryListView: View {
                                 Image(systemName: "checkmark")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(Color(hex: "#5D4EFF"))
-                                    .transition(.scale.combined(with: .opacity))
+                                    .transition(.opacity)
                                     .padding(.trailing, 4)
                             }
                         }
@@ -135,32 +152,39 @@ struct CategoryListView: View {
                             trailing: 16
                         ))
                         .listRowBackground(
-                            isEditMode && selectedCategoryIds.contains(categoryModel.id) ?
-                                Color(hex: "#5D4EFF").opacity(0.15) :
-                                Color(UIColor.secondarySystemGroupedBackground)
+                            {
+                                let isSelected = isEditMode && selectedCategoryIds.contains(categoryModel.id)
+                                if isSelected {
+                                    return Color(hex: "#5D4EFF").opacity(0.15)
+                                } else {
+                                    return Color(UIColor.secondarySystemGroupedBackground)
+                                }
+                            }()
                         )
                         .contentShape(Rectangle())
                         .onTapGesture {
                             if isEditMode {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7, blendDuration: 0.1)) {
-                                    if selectedCategoryIds.contains(categoryModel.id) {
-                                        selectedCategoryIds.remove(categoryModel.id)
+                                let springAnimation = Animation.spring(response: 0.3, dampingFraction: 0.7, blendDuration: 0.1)
+                                let categoryId = categoryModel.id
+                                
+                                withAnimation(springAnimation) {
+                                    if selectedCategoryIds.contains(categoryId) {
+                                        selectedCategoryIds.remove(categoryId)
                                     } else {
-                                        selectedCategoryIds.insert(categoryModel.id)
+                                        selectedCategoryIds.insert(categoryId)
                                     }
                                 }
                                 // Add haptic feedback for selection
                                 let generator = UIImpactFeedbackGenerator(style: .light)
                                 generator.impactOccurred()
                             } else {
+                                // Simply set the editing category ID
                                 editingCategoryId = categoryModel.id
                             }
                         }
                         .id(categoryModel.id) // Use stable ID for animations
-                        .transition(.asymmetric(
-                            insertion: .scale.combined(with: .opacity),
-                            removal: .opacity
-                        ))
+                        // Use simpler transition to avoid complex expressions
+                        .transition(.opacity)
                     }
                     .onMove { indices, newOffset in
                         // This enables iOS to handle the animation automatically
@@ -174,16 +198,25 @@ struct CategoryListView: View {
         // Set background color for the entire view
         .background(Color(UIColor.systemGroupedBackground))
         .navigationTitle("Categories")
+        // Ensure search bar remains visible regardless of edit mode by setting it higher in the view hierarchy
         .searchable(text: $viewModel.searchText, prompt: "Search categories")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
-                    withAnimation {
-                        // Toggle edit mode and clear selections when exiting
+                    // Store current search value
+                    let currentSearch = viewModel.searchText
+                    
+                    // Toggle edit mode and clear selections when exiting
+                    withAnimation(.easeInOut(duration: 0.2)) {
                         isEditMode.toggle()
                         if !isEditMode {
                             selectedCategoryIds.removeAll()
                         }
+                    }
+                    
+                    // Ensure search text is preserved
+                    if !currentSearch.isEmpty {
+                        viewModel.searchText = currentSearch
                     }
                 }) {
                     if isEditMode {
@@ -242,7 +275,8 @@ struct CategoryListView: View {
         }
         .onAppear {
             // Force refresh when view appears - this will trigger the refresh timer
-            DispatchQueue.main.async {
+            let mainQueue = DispatchQueue.main
+            mainQueue.async {
                 viewModel.forceRefresh()
             }
         }
@@ -255,13 +289,15 @@ struct CategoryListView: View {
     // MARK: - Private Methods
     
     private func deleteCategory(_ categoryId: UUID) {
-        withAnimation(.smooth) {
+        // Use standard animation instead of .smooth which might not be available in this iOS version
+        withAnimation {
             viewModel.deleteCategory(id: categoryId)
         }
     }
     
     private func deleteSelectedCategories() {
-        withAnimation(.smooth) {
+        // Use standard animation instead of .smooth
+        withAnimation {
             // Delete all selected categories by ID
             for categoryId in selectedCategoryIds {
                 viewModel.deleteCategory(id: categoryId)
