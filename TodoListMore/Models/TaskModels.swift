@@ -38,6 +38,14 @@ enum TaskPriority: Int16, CaseIterable, Identifiable {
         case .high: return "#FF453A" // Red
         }
     }
+    
+    var themeColor: Color {
+        switch self {
+        case .low: return AppTheme.taskPriorityLow
+        case .medium: return AppTheme.taskPriorityMedium
+        case .high: return AppTheme.taskPriorityHigh
+        }
+    }
 }
 
 /// Filter options for the task list

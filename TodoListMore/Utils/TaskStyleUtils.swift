@@ -12,23 +12,23 @@ struct TaskStyleUtils {
     static func priorityGradient(priority: Int16) -> [Color] {
         switch priority {
         case 1:
-            return [Color.blue, Color.blue.opacity(0.7)]
+            return [AppTheme.taskPriorityLow, AppTheme.taskPriorityLow.opacity(0.7)]
         case 2:
-            return [Color.orange, Color.orange.opacity(0.7)]
+            return [AppTheme.taskPriorityMedium, AppTheme.taskPriorityMedium.opacity(0.7)]
         case 3:
-            return [Color.red, Color.red.opacity(0.7)]
+            return [AppTheme.taskPriorityHigh, AppTheme.taskPriorityHigh.opacity(0.7)]
         default:
-            return [Color.blue, Color.blue.opacity(0.7)]
+            return [AppTheme.taskPriorityLow, AppTheme.taskPriorityLow.opacity(0.7)]
         }
     }
     
     /// Returns the priority color
     static func priorityColor(_ priority: Int16) -> Color {
         switch priority {
-        case 1: return .blue
-        case 2: return .orange
-        case 3: return .red
-        default: return .blue
+        case 1: return AppTheme.taskPriorityLow
+        case 2: return AppTheme.taskPriorityMedium
+        case 3: return AppTheme.taskPriorityHigh
+        default: return AppTheme.taskPriorityLow
         }
     }
 }

@@ -7,6 +7,42 @@
 
 import SwiftUI
 
+// MARK: - AppTheme
+
+/// Central theme management for the app
+struct AppTheme {
+    // MARK: - Colors
+    
+    // App accent color
+    static let accentColor = Color(hex: "#5D4EFF")
+    
+    // Task priorities
+    static let taskPriorityLow = Color(hex: "#3478F6")
+    static let taskPriorityMedium = Color(hex: "#FF9F0A")
+    static let taskPriorityHigh = Color(hex: "#FF453A")
+    
+    // Default category color
+    static let defaultCategoryColor = Color(hex: "#007AFF")
+    
+    // UI Constants
+    struct UI {
+        // Animations
+        static let standardAnimationDuration = 0.2
+        static let springResponse = 0.3
+        static let springDamping = 0.7
+        
+        // Durations
+        static let dueSoonThresholdDays = 3
+        
+        // Dimensions
+        static let cardHeight = 90.0
+        static let cardHeightWithDescription = 130.0
+        static let categoryBadgeWidth = 100.0
+        static let floatingButtonSize = 62.0
+        static let filterIndicatorWidth = 40.0
+    }
+}
+
 extension Color {
     /// Creates a Color from a hex string (e.g. "#FF0000" for red)
     init(hex: String) {
@@ -32,9 +68,4 @@ extension Color {
             opacity: Double(a) / 255
         )
     }
-    
-    /// Common app colors
-    static let taskPriorityLow = Color.blue
-    static let taskPriorityMedium = Color.orange
-    static let taskPriorityHigh = Color.red
 }
