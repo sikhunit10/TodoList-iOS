@@ -32,66 +32,62 @@ struct CategoryListView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // iOS-native edit mode header - only show when in edit mode
+        VStack(spacing: isEditMode ? 8 : 0) {
+            // iOS-native edit mode header - only show when in edit mode, no dividers
             if isEditMode {
-                VStack(spacing: 0) {
-                    Divider()
-                    
-                    HStack {
-                        // Left action: Select All / Deselect All
-                        Button(action: {
-                            withAnimation {
-                                if selectedCategoryIds.count == viewModel.categoryModels.count && !viewModel.categoryModels.isEmpty {
-                                    selectedCategoryIds.removeAll()
-                                } else {
-                                    selectedCategoryIds = Set(viewModel.categoryModels.map { $0.id })
-                                }
-                            }
-                        }) {
-                            let isAllSelected = selectedCategoryIds.count == viewModel.categoryModels.count && !viewModel.categoryModels.isEmpty
-                            Text(isAllSelected ? "Deselect All" : "Select All")
-                                .font(.system(size: 15))
-                                .foregroundColor(Color(hex: "#5D4EFF"))
-                        }
-                        .disabled(viewModel.categoryModels.isEmpty)
-                        
-                        Spacer()
-                        
-                        // Selected count indicator
-                        if selectedCategoryIds.count > 0 {
-                            Text("\(selectedCategoryIds.count) item\(selectedCategoryIds.count > 1 ? "s" : "") selected")
-                                .font(.system(size: 15))
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        // Delete action
-                        Button(action: {
-                            deleteSelectedCategories()
-                        }) {
-                            if selectedCategoryIds.isEmpty {
-                                Text("Delete")
-                                    .font(.system(size: 15))
-                                    .foregroundColor(.gray)
+                HStack {
+                    // Left action: Select All / Deselect All
+                    Button(action: {
+                        withAnimation {
+                            if selectedCategoryIds.count == viewModel.categoryModels.count && !viewModel.categoryModels.isEmpty {
+                                selectedCategoryIds.removeAll()
                             } else {
-                                Text("Delete")
-                                    .font(.system(size: 15))
-                                    .foregroundColor(.red)
+                                selectedCategoryIds = Set(viewModel.categoryModels.map { $0.id })
                             }
                         }
-                        .disabled(selectedCategoryIds.isEmpty)
+                    }) {
+                        let isAllSelected = selectedCategoryIds.count == viewModel.categoryModels.count && !viewModel.categoryModels.isEmpty
+                        Text(isAllSelected ? "Deselect All" : "Select All")
+                            .font(.system(size: 15))
+                            .foregroundColor(Color(hex: "#5D4EFF"))
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .disabled(viewModel.categoryModels.isEmpty)
                     
-                    Divider()
+                    Spacer()
+                    
+                    // Selected count indicator
+                    if selectedCategoryIds.count > 0 {
+                        Text("\(selectedCategoryIds.count) item\(selectedCategoryIds.count > 1 ? "s" : "") selected")
+                            .font(.system(size: 15))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    // Delete action
+                    Button(action: {
+                        deleteSelectedCategories()
+                    }) {
+                        if selectedCategoryIds.isEmpty {
+                            Text("Delete")
+                                .font(.system(size: 15))
+                                .foregroundColor(.gray)
+                        } else {
+                            Text("Delete")
+                                .font(.system(size: 15))
+                                .foregroundColor(.red)
+                        }
+                    }
+                    .disabled(selectedCategoryIds.isEmpty)
                 }
-                .background(Color(UIColor.systemBackground))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(Color(UIColor.systemGroupedBackground)) // Match grouped background color
             }
             
             List {
+                // Remove the spacer completely for a tighter layout
+                
                 if viewModel.isLoading {
                     // Show placeholders while loading
                     ForEach(0..<3) { index in
@@ -106,73 +102,56 @@ struct CategoryListView: View {
                         .listRowBackground(Color.clear)
                 } else {
                     ForEach(viewModel.categoryModels) { categoryModel in
-                        ZStack {
+                        HStack {
                             DirectCategoryRow(
                                 name: categoryModel.name,
                                 colorHex: categoryModel.colorHex,
                                 tasksCount: categoryModel.taskCount
                             )
-                            .swipeActions(edge: .trailing, allowsFullSwipe: !isEditMode) {
-                                if !isEditMode {
-                                    Button(role: .destructive) {
-                                        deleteCategory(categoryModel.id)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                }
-                            }
-                            .listRowInsets(EdgeInsets(
-                                top: 6,
-                                leading: 16,
-                                bottom: 6,
-                                trailing: isEditMode ? 60 : 16
-                            ))
                             
-                            // Modified appearance in edit mode - iOS-style selection
-                            if isEditMode {
-                                // iOS-style checkmark at trailing edge
-                                HStack {
-                                    Spacer()
-                                    
-                                    ZStack {
-                                        // Selection circle
-                                        Circle()
-                                            .fill(selectedCategoryIds.contains(categoryModel.id) ? 
-                                                  Color(hex: "#5D4EFF") : 
-                                                  Color(UIColor.systemFill))
-                                            .frame(width: 28, height: 28)
-                                        
-                                        // Checkmark or empty
-                                        if selectedCategoryIds.contains(categoryModel.id) {
-                                            Image(systemName: "checkmark")
-                                                .font(.system(size: 14, weight: .bold))
-                                                .foregroundColor(.white)
-                                        }
-                                    }
-                                    .padding(.trailing, 20)
-                                    .padding(.leading, 8)
-                                }
-                                
-                                // iOS selection overlay
-                                if selectedCategoryIds.contains(categoryModel.id) {
-                                    Color(UIColor.systemGray5)
-                                        .opacity(0.35)
-                                        .cornerRadius(10)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
+                            // Only show checkmark in edit mode when selected
+                            if isEditMode && selectedCategoryIds.contains(categoryModel.id) {
+                                Spacer()
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(Color(hex: "#5D4EFF"))
+                                    .transition(.scale.combined(with: .opacity))
+                                    .padding(.trailing, 4)
+                            }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: !isEditMode) {
+                            if !isEditMode {
+                                Button(role: .destructive) {
+                                    deleteCategory(categoryModel.id)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
                                 }
                             }
                         }
+                        .listRowInsets(EdgeInsets(
+                            top: 6,
+                            leading: 16,
+                            bottom: 6,
+                            trailing: 16
+                        ))
+                        .listRowBackground(
+                            isEditMode && selectedCategoryIds.contains(categoryModel.id) ?
+                                Color(hex: "#5D4EFF").opacity(0.15) :
+                                Color(UIColor.secondarySystemGroupedBackground)
+                        )
                         .contentShape(Rectangle())
                         .onTapGesture {
                             if isEditMode {
-                                withAnimation(.spring(dampingFraction: 0.7)) {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7, blendDuration: 0.1)) {
                                     if selectedCategoryIds.contains(categoryModel.id) {
                                         selectedCategoryIds.remove(categoryModel.id)
                                     } else {
                                         selectedCategoryIds.insert(categoryModel.id)
                                     }
                                 }
+                                // Add haptic feedback for selection
+                                let generator = UIImpactFeedbackGenerator(style: .light)
+                                generator.impactOccurred()
                             } else {
                                 editingCategoryId = categoryModel.id
                             }
@@ -189,9 +168,11 @@ struct CategoryListView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            // Use animation modifier directly at the list level for categories
+            // Use default list style to maintain rounded corners
             .animation(.easeInOut(duration: 0.2), value: viewModel.categoryModels)
         }
+        // Set background color for the entire view
+        .background(Color(UIColor.systemGroupedBackground))
         .navigationTitle("Categories")
         .searchable(text: $viewModel.searchText, prompt: "Search categories")
         .toolbar {
@@ -205,9 +186,14 @@ struct CategoryListView: View {
                         }
                     }
                 }) {
-                    Text(isEditMode ? "Done" : "Edit")
-                        .fontWeight(isEditMode ? .semibold : .regular)
-                        .foregroundColor(Color(hex: "#5D4EFF"))
+                    if isEditMode {
+                        Text("Done")
+                            .fontWeight(.semibold)
+                            .foregroundColor(Color(hex: "#5D4EFF"))
+                    } else {
+                        Image(systemName: "pencil")
+                            .foregroundColor(Color(hex: "#5D4EFF"))
+                    }
                 }
                 .disabled(viewModel.categoryModels.isEmpty)
             }
