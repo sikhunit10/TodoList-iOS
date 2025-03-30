@@ -258,6 +258,7 @@ struct TaskListView: View {
                 }
             }
         }
+        .toolbarBackground(.white, for: .navigationBar)
         .searchable(text: $searchText, prompt: "Search tasks")
         .onChange(of: searchText) { _ in
             updateFetchRequest()
@@ -433,6 +434,7 @@ struct TaskListView: View {
     }
     
     // MARK: - Private Methods
+    
     
     // Determine if a new task would be visible in the current filter tab
     private func isNewTaskVisibleInCurrentTab() -> Bool {
