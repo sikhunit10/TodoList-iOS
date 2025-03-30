@@ -198,7 +198,7 @@ struct CategoryListView: View {
         // Set background color for the entire view
         .background(Color(UIColor.systemGroupedBackground))
         .navigationTitle("Categories")
-        // Ensure search bar remains visible regardless of edit mode by setting it higher in the view hierarchy
+        .toolbarBackground(.white, for: .navigationBar)
         .searchable(text: $viewModel.searchText, prompt: "Search categories")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -220,8 +220,8 @@ struct CategoryListView: View {
                     }
                 }) {
                     if isEditMode {
-                        Text("Done")
-                            .fontWeight(.semibold)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 17, weight: .semibold))
                             .foregroundColor(Color(hex: "#5D4EFF"))
                     } else {
                         Image(systemName: "pencil")
@@ -287,6 +287,7 @@ struct CategoryListView: View {
     }
     
     // MARK: - Private Methods
+    
     
     private func deleteCategory(_ categoryId: UUID) {
         // Use standard animation instead of .smooth which might not be available in this iOS version
