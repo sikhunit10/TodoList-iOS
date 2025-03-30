@@ -4,33 +4,18 @@ A feature-rich task management application built with SwiftUI and CoreData for i
 
 ## Features
 
-### Task Management
 - Create, view, edit, and delete tasks with titles and descriptions
 - Mark tasks as completed with a satisfying animation
 - Swipe actions for quick task completion and deletion
 - Batch operations for managing multiple tasks at once
 - Prioritize tasks with Low, Medium, and High levels
 - Set and track due dates with visual indicators for upcoming deadlines
-
-### Organization
 - Create custom color-coded categories
-- Assign tasks to specific categories
-- Filter tasks by All, Active, Today, Upcoming, or Completed
+- Filter tasks by status (all, today, upcoming, completed)
 - Search tasks by title and description
-- Batch edit mode for both tasks and categories
-
-### User Experience
-- Native iOS design elements and animations
-- Dark and light mode support
-- Consistent navigation flow
-- Responsive layout for iPhone and iPad
-- Modern tab-based navigation
-
-### Performance
 - Local storage with CoreData
-- Efficient background data operations
-- Real-time UI updates
-- Enhanced refresh mechanisms
+- Dark and light mode support
+- Responsive layout for iPhone and iPad
 
 ## Technical Details
 
