@@ -1,77 +1,90 @@
-# Todo List App for iOS
+# TaskFlow - Modern iOS Todo List App
 
-A modern Todo List application for iOS that works on both iPhone and iPad. The app stores data locally using CoreData.
+A feature-rich task management application built with SwiftUI and CoreData for iOS/iPadOS. TaskFlow helps you organize tasks with categories, priorities, and due dates in a clean, intuitive interface.
 
 ## Features
 
-- Create, view, edit, and delete tasks
-- Organize tasks with color-coded categories
-- Set due dates and priority levels
-- Mark tasks as completed
-- Filter tasks by status (all, today, upcoming, completed)
+### Task Management
+- Create, view, edit, and delete tasks with titles and descriptions
+- Mark tasks as completed with a satisfying animation
+- Swipe actions for quick task completion and deletion
+- Batch operations for managing multiple tasks at once
+- Prioritize tasks with Low, Medium, and High levels
+- Set and track due dates with visual indicators for upcoming deadlines
+
+### Organization
+- Create custom color-coded categories
+- Assign tasks to specific categories
+- Filter tasks by All, Active, Today, Upcoming, or Completed
 - Search tasks by title and description
+- Batch edit mode for both tasks and categories
+
+### User Experience
+- Native iOS design elements and animations
+- Dark and light mode support
+- Consistent navigation flow
+- Responsive layout for iPhone and iPad
+- Modern tab-based navigation
+
+### Performance
 - Local storage with CoreData
-- Consistent iOS-native interface
-
-## Project Structure
-
-```
-TodoListMore/
-├── Models/
-│   ├── Models.swift              # Core Data model templates
-│   ├── TaskModels.swift          # Task-related enums and structs
-│   └── TodoListMore.xcdatamodeld # CoreData model
-├── Views/
-│   ├── Tasks/
-│   │   ├── TaskListView.swift    # Main task list
-│   │   ├── TaskDetailView.swift  # Task details
-│   │   └── TaskFormView.swift    # Add/edit task form
-│   ├── Categories/
-│   │   └── CategoryListView.swift # Category management
-│   └── Settings/
-│       └── SettingsView.swift     # App settings
-├── Services/
-│   └── DataController.swift      # CoreData controller
-└── Utils/
-    └── ColorExtensions.swift     # Color utilities
-```
+- Efficient background data operations
+- Real-time UI updates
+- Enhanced refresh mechanisms
 
 ## Technical Details
 
 ### Architecture
-- SwiftUI for interface design
-- MVVM architecture pattern
-- CoreData for local persistence
-- Support for iPhone and iPad
+- **UI Framework**: SwiftUI for modern declarative interface design
+- **Design Pattern**: MVVM (Model-View-ViewModel)
+- **Data Persistence**: CoreData with optimized context management
+- **State Management**: Combine framework for reactive data flow
+- **Background Processing**: Asynchronous operations for performance
+
+### Key Components
+- **DataController**: Central service for CoreData operations and state management
+- **CategoryViewModel**: Dedicated view model for category management
+- **TaskListView**: Main interface with filtering and search capabilities
+- **TaskFormView**: Rich form for task creation and editing
+- **CategoryListView**: Management interface for categories
 
 ### Requirements
-- iOS 16.0+
-- iPadOS 16.0+
+- iOS 16.0+ / iPadOS 16.0+
 - Xcode 14.0+
 - Swift 5.7+
 
-## Setup Instructions
+## Implementation Details
 
-1. Open the project in Xcode
+### Core Data Model
+The app uses two main entities:
+- **Task**: Stores task information including title, description, priority, completion status, due date, and creation/modification timestamps
+- **Category**: Defines categories with names and color codes that can be assigned to tasks
 
-2. Configure the CoreData model:
-   - Open TodoListMore.xcdatamodeld
-   - Create Task and Category entities with appropriate attributes and relationships
-   - Generate NSManagedObject subclasses
+### Performance Optimizations
+- Background context for heavy database operations
+- Batch delete operations for completed tasks
+- Optimized fetching with predicate-based filtering
+- Real-time UI updates through Combine publishers
 
-3. Build and run the app
+### User Interface
+- Custom task cards with visual priority indicators
+- Animated transitions and micro-interactions
+- iOS-native navigation styles and appearances
+- Optimized forms with intuitive input methods
+
+## Getting Started
+
+1. Clone the repository
+2. Open the project in Xcode
+3. Build and run on your simulator or device
 
 ## Privacy
 
-The app respects user privacy by:
-- Storing all data locally on the device
-- No data is transmitted to external servers
+This app respects user privacy by:
+- Keeping all data locally on the device
+- No network requests or external data sharing
+- No analytics or tracking code
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Hire Me
-
-If you'd like to hire me for your iOS development project, please visit my website:
-[https://www.harjotsinghpanesar.com](https://www.harjotsinghpanesar.com)
