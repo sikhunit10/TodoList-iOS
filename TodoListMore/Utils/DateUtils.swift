@@ -8,12 +8,12 @@
 import Foundation
 
 struct DateUtils {
-    /// Check if date is within 3 days from now
+    /// Check if date is within threshold days from now
     static func isDueSoon(_ date: Date) -> Bool {
         let calendar = Calendar.current
         let now = Date()
         let components = calendar.dateComponents([.day], from: now, to: date)
-        return components.day != nil && components.day! <= 3
+        return components.day != nil && components.day! <= AppTheme.UI.dueSoonThresholdDays
     }
     
     /// Check if task is overdue

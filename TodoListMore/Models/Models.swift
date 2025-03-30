@@ -11,24 +11,16 @@ import CoreData
 // MARK: - Task Extensions
 extension Task {
     // Convenience methods for Task entity
-    var taskTitle: String {
+    var safeTitle: String {
         return title ?? "Untitled Task"
     }
     
-    var taskDescriptionText: String {
-        return self.taskDescription ?? ""
+    var safeDescription: String {
+        return taskDescription ?? ""
     }
     
-    var taskDueDate: Date? {
-        return dueDate
-    }
-    
-    var taskPriority: TaskPriority {
+    var priorityEnum: TaskPriority {
         return TaskPriority(rawValue: priority) ?? .medium
-    }
-    
-    var taskCategory: Category? {
-        return category
     }
     
     var formattedDueDate: String {
@@ -44,16 +36,24 @@ extension Task {
 // MARK: - Category Extensions
 extension Category {
     // Convenience methods for Category entity
-    var categoryName: String {
+    var safeName: String {
         return name ?? "Uncategorized"
     }
     
-    var categoryColorHex: String {
-        return colorHex ?? "#007AFF"
+    var safeColorHex: String {
+        return colorHex ?? AppTheme.defaultCategoryColor.hex
     }
     
-    var categoryTasks: [Task] {
+    var taskArray: [Task] {
         let set = tasks as? Set<Task> ?? []
         return Array(set)
+    }
+}
+
+// Helper to get hex from Color
+extension Color {
+    var hex: String {
+        // Default fallback for AppTheme.defaultCategoryColor
+        return "#007AFF"
     }
 }
