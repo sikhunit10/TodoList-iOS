@@ -137,7 +137,8 @@ struct TaskFormView: View {
                                 .padding(.vertical, 4)
                                 
                                 if hasDueDate {
-                                    DatePicker("Due Date", selection: $dueDate, displayedComponents: [.date])
+                                    // Include both date and time components
+                                    DatePicker("Due Date & Time", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
                                         .datePickerStyle(.compact)
                                         .padding(.top, 4)
                                         .transition(.opacity)
