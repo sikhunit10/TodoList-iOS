@@ -70,6 +70,7 @@ struct TaskCardView: View {
                     dateCreated: dateCreated,
                     task: task
                 )
+                .padding(.horizontal, 16) // Add horizontal padding here
                 .padding(.bottom, 2) // Minimal bottom padding
             }
         }
@@ -179,46 +180,45 @@ struct TaskCardFooterView: View {
     // Create formatter outside the view body
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy" // Format like "Mar 27, 2025"
+        formatter.dateFormat = "M/d h:mma" // Compact AM/PM format like "4/1 3:30PM"
         return formatter
     }()
     
     var body: some View {
-        // Use VStack for smaller screens to avoid truncation
-        VStack(alignment: .leading, spacing: 4) { // Reduced vertical spacing
-            HStack(spacing: 0) { // Reduced spacing between elements
-                // Due date chip - using custom date format instead of .date style
-                if let dueDate = dueDate {
-                    HStack(spacing: 4) {
-                        Image(systemName: "calendar")
-                            .font(.system(size: 11))
-                        Text(dateFormatter.string(from: dueDate))
-                            .font(.system(size: 11, weight: .medium))
-                            .lineLimit(1)
-                    }
-                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.secondary)
-                    .padding(.vertical, 5)
-                    .padding(.horizontal, 8)
-                    .frame(minWidth: 105) // Just enough width for date with small margin
-                    .background(colorScheme == .dark ? Color.secondary.opacity(0.2) : Color.secondary.opacity(0.08))
-                    .cornerRadius(8)
-                }
-                
-                // Time ago badge
-                if let dateCreated = dateCreated {
-                    Text(DateUtils.timeAgo(from: dateCreated))
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : Color.secondary.opacity(0.8))
+        // Simplified footer with horizontal layout - reduced spacing to prevent truncation
+        HStack(alignment: .center, spacing: 4) {
+            // Due date badge - compact format
+            if let dueDate = dueDate {
+                HStack(spacing: 3) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 10))
+                    Text(dateFormatter.string(from: dueDate))
+                        .font(.system(size: 10, weight: .medium))
                         .lineLimit(1)
-                        .frame(minWidth: 75)
+                        .truncationMode(.middle)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                
-                Spacer()
-                
-                // Use our dedicated TaskCategoryView that handles real-time updates
-                TaskCategoryView(task: task)
+                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.secondary)
+                .padding(.vertical, 3)
+                .padding(.horizontal, 6)
+                .background(colorScheme == .dark ? Color.secondary.opacity(0.2) : Color.secondary.opacity(0.08))
+                .cornerRadius(6)
+                .frame(minWidth: 105, maxWidth: 125, alignment: .leading)
             }
+            
+            // Time ago badge, even more compact
+            if let dateCreated = dateCreated {
+                Text(DateUtils.timeAgo(from: dateCreated))
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : Color.secondary.opacity(0.8))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            
+            Spacer()
+            
+            // Category at the end
+            TaskCategoryView(task: task)
         }
-        .padding(.horizontal, 16)
     }
 }
