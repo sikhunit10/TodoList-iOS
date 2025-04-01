@@ -10,6 +10,10 @@ import UIKit
 
 struct ContentView: View {
     @State private var selectedTab = 0
+    @State private var highlightedTaskId: UUID?
+    
+    // For logging purposes
+    private let tag = "ContentView"
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var dataController: DataController
@@ -22,7 +26,7 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             // Tasks tab - white navigation bar with inline title
             NavigationStack {
-                TaskListView()
+                TaskListView(highlightedTaskId: $highlightedTaskId)
                     .navigationTitle("Tasks")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbarBackground(.visible, for: .navigationBar)
@@ -61,6 +65,26 @@ struct ContentView: View {
             .tag(2)
         }
         .tint(colorScheme == .dark ? accentDark : accentLight)
+        .onReceive(NotificationCenter.default.publisher(for: .didTapTaskNotification)) { notification in
+            if let taskId = notification.userInfo?["taskId"] as? UUID {
+                print("\(tag): Received notification for task: \(taskId)")
+                
+                // Set the highlighted task ID immediately
+                print("\(tag): Setting highlighted task: \(taskId)")
+                highlightedTaskId = taskId
+                
+                // Then switch to the tasks tab
+                selectedTab = 0
+                
+                // Reset the highlight after 5 seconds to match the TaskListView timeout
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                    print("\(tag): Clearing highlighted task")
+                    withAnimation {
+                        highlightedTaskId = nil
+                    }
+                }
+            }
+        }
         .onAppear {
             // Enhanced iOS system appearance
             let appearance = UITabBarAppearance()
