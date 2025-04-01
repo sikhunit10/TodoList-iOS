@@ -71,7 +71,9 @@ extension Task {
         
         let title = self.safeTitle
         let description = self.safeDescription
-        let body = description.isEmpty ? "Task is due" : description
+        // We now use the task's description as body in case we need to display it
+        // The actual body text shown in notification is now formatted in NotificationManager
+        let body = description
         
         // Schedule the reminder
         // Get the reminder type value directly as Int16 for safety
