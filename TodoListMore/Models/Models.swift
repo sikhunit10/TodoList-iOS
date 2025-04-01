@@ -51,7 +51,7 @@ extension Task {
         
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
-        formatter.timeStyle = .short
+        formatter.timeStyle = .short // Include time
         return formatter.string(from: dueDate)
     }
     

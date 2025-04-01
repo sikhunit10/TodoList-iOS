@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 /// Priority levels for tasks
 enum TaskPriority: Int16, CaseIterable, Identifiable {
