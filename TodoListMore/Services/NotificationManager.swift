@@ -93,10 +93,16 @@ class NotificationManager {
                 return
             }
             
+            // Format due date for notification
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            let formattedDueDate = formatter.string(from: dueDate)
+            
             // Create notification content
             let content = UNMutableNotificationContent()
             content.title = title
-            content.body = body
+            content.body = "Due: \(formattedDueDate)"
             content.sound = .default
             
             // Add task ID as user info to identify the notification
