@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreData
+import UserNotifications
 
 struct TaskFormView: View {
     @Environment(\.dismiss) private var dismiss
@@ -24,6 +25,11 @@ struct TaskFormView: View {
     @State private var categories: [NSManagedObject] = []
     @State private var isLoading = false
     @State private var showCategoryForm = false
+    
+    // Reminder fields
+    @State private var reminderType: Int16 = 0
+    @State private var customReminderMinutes: Double = 30
+    @State private var showCustomTimePicker = false
     
     // Form mode (add new or edit existing task)
     let mode: FormMode
@@ -332,6 +338,87 @@ struct TaskFormView: View {
                         .background(colorScheme == .dark ? Color(hex: "#2C2C2E") : .white)
                         .cornerRadius(16)
                         .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.0 : 0.05), radius: 8, x: 0, y: 2)
+                        
+                        // Reminder Card - only show if there's a due date
+                        if hasDueDate {
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack {
+                                    Image(systemName: "bell.fill")
+                                        .foregroundColor(.accentColor)
+                                        .frame(width: 22)
+                                    Text("Reminder")
+                                        .font(.headline)
+                                }
+                                .padding(.bottom, 4)
+                                
+                                VStack(alignment: .leading, spacing: 12) {
+                                    // Use ReminderType enum for options
+                                    ForEach(ReminderType.allCases, id: \.id) { option in
+                                        Button {
+                                            reminderType = option.rawValue
+                                            if option == .custom { // Custom
+                                                showCustomTimePicker = true
+                                            } else {
+                                                showCustomTimePicker = false
+                                            }
+                                        } label: {
+                                            HStack {
+                                                Text(option.name)
+                                                    .foregroundColor(.primary)
+                                                
+                                                Spacer()
+                                                
+                                                if reminderType == option.rawValue {
+                                                    Image(systemName: "checkmark.circle.fill")
+                                                        .foregroundColor(.accentColor)
+                                                }
+                                            }
+                                            .contentShape(Rectangle())
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 10)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .fill(reminderType == option.rawValue ? 
+                                                        (colorScheme == .dark ? Color(hex: "#3A3A3C") : Color(hex: "#F0F0F5")) : 
+                                                        .clear)
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    
+                                    // Custom time picker
+                                    if showCustomTimePicker {
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text("Minutes before due time:")
+                                                .font(.subheadline)
+                                                .foregroundColor(.secondary)
+                                                .padding(.top, 8)
+                                            
+                                            HStack {
+                                                Text("\(Int(customReminderMinutes))")
+                                                    .frame(width: 40, alignment: .trailing)
+                                                    .font(.headline)
+                                                
+                                                Slider(value: $customReminderMinutes, in: 5...720, step: 5)
+                                                    .accentColor(.accentColor)
+                                            }
+                                            
+                                            Text("Reminder will be sent \(Int(customReminderMinutes)) minutes before the task is due")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        .padding()
+                                        .background(colorScheme == .dark ? Color(hex: "#3A3A3C") : Color(hex: "#F9F9FA"))
+                                        .cornerRadius(12)
+                                        .padding(.top, 8)
+                                    }
+                                }
+                            }
+                            .padding()
+                            .background(colorScheme == .dark ? Color(hex: "#2C2C2E") : .white)
+                            .cornerRadius(16)
+                            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.0 : 0.05), radius: 8, x: 0, y: 2)
+                        }
                     }
                     .padding()
                 }
@@ -359,9 +446,9 @@ struct TaskFormView: View {
     
     private func priorityColor(for value: Int16) -> Color {
         switch value {
-        case 1: return .taskPriorityLow
-        case 2: return .taskPriorityMedium
-        case 3: return .taskPriorityHigh
+        case 1: return AppTheme.taskPriorityLow
+        case 2: return AppTheme.taskPriorityMedium
+        case 3: return AppTheme.taskPriorityHigh
         default: return .blue
         }
     }
@@ -422,6 +509,28 @@ struct TaskFormView: View {
                    let categoryId = category.value(forKey: "id") as? UUID {
                     selectedCategoryId = categoryId
                 }
+                
+                // Only try to load reminder settings if they're supported
+                if dataController.hasReminderSupport {
+                    // Safely try to load the reminder settings
+                    do {
+                        reminderType = (task.value(forKey: "reminderType") as? Int16) ?? 0
+                    } catch {
+                        // Property doesn't exist, ignore
+                    }
+                    
+                    do {
+                        if let customTime = task.value(forKey: "customReminderTime") as? Double {
+                            // Convert from seconds to minutes for display
+                            customReminderMinutes = abs(customTime) / 60
+                        }
+                    } catch {
+                        // Property doesn't exist, ignore
+                    }
+                    
+                    // Show custom time picker if reminder type is custom (type 5)
+                    showCustomTimePicker = (reminderType == 5)
+                }
             }
         } catch {
             print("Error loading task: \(error.localizedDescription)")
@@ -433,6 +542,13 @@ struct TaskFormView: View {
     private func saveTask() -> Bool {
         var success = false
         
+        // Calculate custom reminder time in seconds if needed
+        var customReminderTime: Double? = nil
+        if reminderType == 5 { // Custom reminder type
+            // Convert minutes to seconds and make it negative (time before due date)
+            customReminderTime = -(customReminderMinutes * 60)
+        }
+        
         switch mode {
         case .add:
             if let _ = dataController.addTask(
@@ -440,7 +556,9 @@ struct TaskFormView: View {
                 description: taskDescription,
                 dueDate: hasDueDate ? dueDate : nil,
                 priority: priority,
-                categoryId: selectedCategoryId
+                categoryId: selectedCategoryId,
+                reminderType: hasDueDate ? reminderType : 0,
+                customReminderTime: customReminderTime
             ) {
                 success = true
             }
@@ -455,7 +573,9 @@ struct TaskFormView: View {
                     removeDueDate: !hasDueDate,
                     priority: priority,
                     categoryId: selectedCategoryId,
-                    removeCategoryId: selectedCategoryId == nil
+                    removeCategoryId: selectedCategoryId == nil,
+                    reminderType: hasDueDate ? reminderType : 0,
+                    customReminderTime: customReminderTime
                 )
             }
         }

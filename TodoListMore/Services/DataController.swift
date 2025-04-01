@@ -21,6 +21,9 @@ class DataController: ObservableObject {
     // CoreData container
     let container: NSPersistentContainer
     
+    // Flag to indicate if reminder attributes exist in the model
+    private(set) var hasReminderSupport = false
+    
     init() {
         // Initialize with regular NSPersistentContainer for local storage
         container = NSPersistentContainer(name: "TodoListMore")
@@ -29,6 +32,22 @@ class DataController: ObservableObject {
         container.loadPersistentStores { description, error in
             if let error = error {
                 print("CoreData failed to load: \(error.localizedDescription)")
+            } else {
+                // Check if reminder attributes exist in the model
+                let migrationHelper = CoreDataMigration.shared
+                self.hasReminderSupport = migrationHelper.hasReminderAttributes(viewContext: self.container.viewContext)
+                
+                if self.hasReminderSupport {
+                    print("Reminder support is enabled")
+                    
+                    // Request notification permissions
+                    NotificationManager.shared.requestAuthorization { granted in
+                        print("Notification permission granted: \(granted)")
+                    }
+                } else {
+                    // Print instructions for adding reminder attributes
+                    migrationHelper.printMigrationInstructions()
+                }
             }
         }
         
@@ -69,7 +88,8 @@ class DataController: ObservableObject {
     
     // MARK: - Task Operations
     
-    func addTask(title: String, description: String, dueDate: Date?, priority: Int16, categoryId: UUID? = nil) -> NSManagedObject? {
+    func addTask(title: String, description: String, dueDate: Date?, priority: Int16, 
+              categoryId: UUID? = nil, reminderType: Int16 = 0, customReminderTime: Double? = nil) -> NSManagedObject? {
         let context = container.viewContext
         
         // Using string-based Key-Value Coding for safe access to entity
@@ -86,6 +106,17 @@ class DataController: ObservableObject {
         task.setValue(false, forKey: "isCompleted")
         task.setValue(now, forKey: "dateCreated")
         task.setValue(now, forKey: "dateModified")
+        
+        // Always try to set reminder attributes (force enable)
+        do {
+            task.setValue(reminderType, forKey: "reminderType")
+            
+            if let customTime = customReminderTime {
+                task.setValue(customTime, forKey: "customReminderTime")
+            }
+        } catch {
+            print("Warning: Failed to set reminder attributes: \(error.localizedDescription)")
+        }
         
         // If we have a category ID, find that category and associate it
         if let categoryId = categoryId {
@@ -104,13 +135,20 @@ class DataController: ObservableObject {
         
         // Save with specific notification
         save(notificationName: .tasksDidChange, userInfo: ["taskId": taskId])
+        
+        // Schedule reminders if due date and reminder type are set and reminder support is available
+        if hasReminderSupport, let dueDate = dueDate, reminderType > 0, let task = task as? Task {
+            task.scheduleReminder()
+        }
+        
         return task
     }
     
     func updateTask(id: UUID, title: String? = nil, description: String? = nil, 
                     dueDate: Date? = nil, removeDueDate: Bool = false,
                     priority: Int16? = nil, isCompleted: Bool? = nil, 
-                    categoryId: UUID? = nil, removeCategoryId: Bool = false) -> Bool {
+                    categoryId: UUID? = nil, removeCategoryId: Bool = false,
+                    reminderType: Int16? = nil, customReminderTime: Double? = nil) -> Bool {
         
         let context = container.viewContext
         let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "Task")
@@ -120,19 +158,29 @@ class DataController: ObservableObject {
             let tasks = try context.fetch(fetchRequest)
             guard let task = tasks.first else { return false }
             
+            // Keep track if we need to reschedule the reminder
+            var needsReschedule = false
+            
             // Update only provided fields
             if let title = title {
                 task.setValue(title, forKey: "title")
+                needsReschedule = true
             }
             
             if let description = description {
                 task.setValue(description, forKey: "taskDescription")
+                needsReschedule = true
             }
             
             if let dueDate = dueDate {
                 task.setValue(dueDate, forKey: "dueDate")
+                needsReschedule = true
             } else if removeDueDate {
                 task.setValue(nil, forKey: "dueDate")
+                // Remove any reminders if due date is removed
+                if let task = task as? Task {
+                    task.removeReminders()
+                }
             }
             
             if let priority = priority {
@@ -141,6 +189,28 @@ class DataController: ObservableObject {
             
             if let isCompleted = isCompleted {
                 task.setValue(isCompleted, forKey: "isCompleted")
+                
+                // If task is completed, remove its reminders
+                if isCompleted, let task = task as? Task {
+                    task.removeReminders()
+                } else if !isCompleted {
+                    needsReschedule = true
+                }
+            }
+            
+            // Always try to update reminder settings
+            do {
+                if let reminderType = reminderType {
+                    task.setValue(reminderType, forKey: "reminderType")
+                    needsReschedule = true
+                }
+                
+                if let customReminderTime = customReminderTime {
+                    task.setValue(customReminderTime, forKey: "customReminderTime")
+                    needsReschedule = true
+                }
+            } catch {
+                print("Warning: Failed to update reminder attributes: \(error.localizedDescription)")
             }
             
             var updatedCategoryId: UUID? = nil
@@ -163,6 +233,12 @@ class DataController: ObservableObject {
             // Save with specific notification
             let userInfo: [AnyHashable: Any] = ["taskId": id, "categoryId": updatedCategoryId as Any]
             save(notificationName: .tasksDidChange, userInfo: userInfo)
+            
+            // Always try to reschedule reminder if needed
+            if needsReschedule, let task = task as? Task, let _ = task.dueDate, !task.isCompleted {
+                task.scheduleReminder()
+            }
+            
             return true
         } catch {
             print("Error updating task: \(error.localizedDescription)")

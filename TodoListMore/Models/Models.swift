@@ -7,6 +7,8 @@
 
 import Foundation
 import CoreData
+import SwiftUI
+import UserNotifications
 
 // MARK: - Task Extensions
 extension Task {
@@ -23,6 +25,27 @@ extension Task {
         return TaskPriority(rawValue: priority) ?? .medium
     }
     
+    var reminderTypeEnum: ReminderType {
+        // Default to none if reminder support isn't available
+        if !DataController.shared.hasReminderSupport {
+            return .none
+        }
+        
+        // Safe access using try/catch to avoid exceptions
+        var reminderTypeValue: Int16 = 0
+        
+        do {
+            if let value = try self.primitiveValue(forKey: "reminderType") as? Int16 {
+                reminderTypeValue = value
+            }
+        } catch {
+            // If there's an error, the key likely doesn't exist
+            return .none
+        }
+        
+        return ReminderType(rawValue: reminderTypeValue) ?? .none
+    }
+    
     var formattedDueDate: String {
         guard let dueDate = dueDate else { return "No due date" }
         
@@ -30,6 +53,69 @@ extension Task {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: dueDate)
+    }
+    
+    // Helper to manage reminders
+    func scheduleReminder() {
+        guard let id = id, let dueDate = dueDate else { return }
+        
+        // Always try to schedule reminders
+        // (No check for hasReminderSupport)
+        
+        let reminderType = self.reminderTypeEnum
+        if reminderType == .none {
+            // Remove any existing reminders
+            NotificationManager.shared.removeTaskReminders(taskId: id)
+            return
+        }
+        
+        let title = self.safeTitle
+        let description = self.safeDescription
+        let body = description.isEmpty ? "Task is due" : description
+        
+        // Schedule the reminder
+        // Get the reminder type value directly as Int16 for safety
+        var reminderTypeValue: Int16 = 0
+        
+        // Safe access using KVC
+        do {
+            if let value = self.value(forKey: "reminderType") as? Int16 {
+                reminderTypeValue = value
+            }
+        } catch {
+            // If there's an error accessing reminderType, use default value
+            print("Error accessing reminderType: \(error.localizedDescription)")
+        }
+        
+        // Get the custom reminder time if it exists
+        var customTime: Double? = nil
+        
+        // Safe access to avoid crash if property doesn't exist
+        do {
+            if let value = self.value(forKey: "customReminderTime") as? Double {
+                customTime = value
+            }
+        } catch {
+            // Key doesn't exist, just leave as nil
+            print("Error accessing customReminderTime: \(error.localizedDescription)")
+        }
+        
+        NotificationManager.shared.scheduleTaskReminder(
+            taskId: id,
+            title: title,
+            body: body,
+            dueDate: dueDate,
+            reminderType: reminderTypeValue, // Pass the raw Int16 value
+            customTime: customTime
+        )
+    }
+    
+    // Remove reminders for this task
+    func removeReminders() {
+        guard let id = id else { return }
+        
+        // Always try to remove reminders
+        NotificationManager.shared.removeTaskReminders(taskId: id)
     }
 }
 
@@ -53,7 +139,19 @@ extension Category {
 // Helper to get hex from Color
 extension Color {
     var hex: String {
-        // Default fallback for AppTheme.defaultCategoryColor
-        return "#007AFF"
+        // Get color components
+        guard let components = self.cgColor?.components, components.count >= 3 else {
+            // Default fallback for AppTheme.defaultCategoryColor
+            return "#007AFF"
+        }
+        
+        let r = Float(components[0])
+        let g = Float(components[1])
+        let b = Float(components[2])
+        
+        return String(format: "#%02lX%02lX%02lX",
+                      lroundf(r * 255),
+                      lroundf(g * 255),
+                      lroundf(b * 255))
     }
 }
