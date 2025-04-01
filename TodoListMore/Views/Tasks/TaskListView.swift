@@ -16,7 +16,17 @@ struct TaskListView: View {
     @State private var searchText = ""
     @State private var selectedFilter: TaskFilter = .all
     @State private var selectedTaskId: String? = nil
+    @State private var animateHighlight = false
     @AppStorage("completedTasksVisible") private var completedTasksVisible = true
+    
+    // Task to highlight (from notification) - now using a binding to get live updates
+    @Binding var highlightedTaskId: UUID?
+    
+    // Print the ID for debugging
+    init(highlightedTaskId: Binding<UUID?>) {
+        self._highlightedTaskId = highlightedTaskId
+        print("TaskListView initialized with highlightedTaskId: \(String(describing: highlightedTaskId.wrappedValue))")
+    }
     
     // Edit mode states
     @State private var isEditMode = false
@@ -38,221 +48,16 @@ struct TaskListView: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-                // Modern Filter Selector
-                // Custom animated segment control with nice visuals
-                // Hide filter when in edit mode
-                if !isEditMode {
-                    SegmentedFilterView(selectedFilter: $selectedFilter)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 0)
-                        .padding(.bottom, 0)
-                        .background(Color.white)
-                        .onChange(of: selectedFilter) { _ in
-                            updateFetchRequest()
-                        }
-                } else {
-                    // iOS-native edit mode header
-                    VStack(spacing: 0) {
-                        // Keeping the top divider as it's needed to separate the edit mode header from navigation bar
-                        Divider()
-                        
-                        HStack {
-                            // Left action: Select All / Deselect All
-                            Button(action: {
-                                withAnimation {
-                                    if selectedTaskIds.count == tasks.count && !tasks.isEmpty {
-                                        selectedTaskIds.removeAll()
-                                    } else {
-                                        selectedTaskIds = Set(tasks.compactMap { $0.id })
-                                    }
-                                }
-                            }) {
-                                HStack(spacing: 5) {
-                                    Image(systemName: selectedTaskIds.count == tasks.count && !tasks.isEmpty ? "minus.square" : "checkmark.square")
-                                        .font(.system(size: 15, weight: .medium))
-                                    Text(selectedTaskIds.count == tasks.count && !tasks.isEmpty ? "Deselect All" : "Select All")
-                                        .font(.system(size: 15))
-                                }
-                                .foregroundColor(Color(hex: "#5D4EFF"))
-                            }
-                            .disabled(tasks.isEmpty)
-                            
-                            Spacer()
-                            
-                            // Selected count indicator
-                            if selectedTaskIds.count > 0 {
-                                Text("\(selectedTaskIds.count) item\(selectedTaskIds.count > 1 ? "s" : "") selected")
-                                    .font(.system(size: 15))
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            // Delete action
-                            Button(action: {
-                                deleteSelectedTasks()
-                            }) {
-                                HStack(spacing: 5) {
-                                    Image(systemName: "trash")
-                                        .font(.system(size: 15, weight: .medium))
-                                    Text("Delete")
-                                        .font(.system(size: 15))
-                                }
-                                .foregroundColor(selectedTaskIds.isEmpty ? .gray : .red)
-                            }
-                            .disabled(selectedTaskIds.isEmpty)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        
-                        // Removed the bottom divider that was causing an unwanted line
-                    }
-                    .background(Color.white)
-                }
+                // Filter header
+                filterHeader
                 
-                // List with swipe actions (replaces ScrollView+VStack)
-                List {
-                    if tasks.isEmpty {
-                        EmptyTaskView(onAddTask: { 
-                            // Switch to the appropriate tab before showing the add task form
-                            // to ensure the new task will be visible after creation
-                            switchToAppropriateTabForNewTask()
-                            showingAddTask = true 
-                        })
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.white)
-                    } else {
-                        // Tasks list with swipe actions
-                        ForEach(tasks) { task in
-                            ZStack {
-                                // Task card with iOS-native style in edit mode
-                                TaskCardView(task: task)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 4)
-                                    // Standard iOS behavior - no scaling effects
-                                    .opacity(selectedTaskIds.contains(task.id ?? UUID()) ? 1.0 : 1.0)
-                                
-                                // Modified card appearance in edit mode - iOS-style selection
-                                if isEditMode, let taskId = task.id {
-                                    // iOS-style checkmark at trailing edge (right side)
-                                    HStack {
-                                        Spacer()
-                                        
-                                        ZStack {
-                                            // Selection circle
-                                            Circle()
-                                                .fill(selectedTaskIds.contains(taskId) ? 
-                                                      Color(hex: "#5D4EFF") : 
-                                                      Color(UIColor.systemFill))
-                                                .frame(width: 28, height: 28)
-                                            
-                                            // Checkmark or empty
-                                            if selectedTaskIds.contains(taskId) {
-                                                Image(systemName: "checkmark")
-                                                    .font(.system(size: 14, weight: .bold))
-                                                    .foregroundColor(.white)
-                                            }
-                                        }
-                                        .padding(.trailing, 20)
-                                        .padding(.leading, 8)
-                                    }
-                                    
-                                    // iOS selection overlay (gray background for selected items)
-                                    if selectedTaskIds.contains(taskId) {
-                                        Color(UIColor.systemGray5)
-                                            .opacity(0.35)
-                                            .cornerRadius(10)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                    }
-                                }
-                            }
-                            .contentShape(Rectangle())
-                            .contextMenu {
-                                if !isEditMode {
-                                    Button {
-                                        withAnimation {
-                                            if let id = task.id {
-                                                dataController.toggleTaskCompletion(id: id)
-                                                // No need to call refreshAllObjects - handled by notification
-                                            }
-                                        }
-                                    } label: {
-                                        Label(task.isCompleted ? "Mark Incomplete" : "Mark Complete", 
-                                              systemImage: task.isCompleted ? "circle" : "checkmark.circle.fill")
-                                    }
-                                    
-                                    Button(role: .destructive) {
-                                        deleteTask(task)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                }
-                            }
-                            .onTapGesture {
-                                if isEditMode, let taskId = task.id {
-                                    withAnimation(.spring(dampingFraction: 0.7)) {
-                                        if selectedTaskIds.contains(taskId) {
-                                            selectedTaskIds.remove(taskId)
-                                        } else {
-                                            selectedTaskIds.insert(taskId)
-                                        }
-                                    }
-                                } else if !isEditMode {
-                                    selectedTaskId = task.id?.uuidString
-                                }
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                // Right swipe - Delete
-                                Button(role: .destructive) {
-                                    deleteTask(task)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                                .tint(.red)
-                            }
-                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                // Left swipe - Toggle completion
-                                Button {
-                                    if let id = task.id {
-                                        withAnimation {
-                                            dataController.toggleTaskCompletion(id: id)
-                                            // No need to call refreshAllObjects - handled by notification
-                                        }
-                                    }
-                                } label: {
-                                    Label(
-                                        task.isCompleted ? "Incomplete" : "Complete", 
-                                        systemImage: task.isCompleted ? "circle" : "checkmark.circle.fill"
-                                    )
-                                }
-                                .tint(task.isCompleted ? .gray : Color(hex: "#5D4EFF"))
-                            }
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets())
-                            .listRowBackground(Color.white)
-                        }
-                        
-                        // Add spacer at bottom for floating button
-                        Color.clear
-                            .frame(height: 76)
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets())
-                            .listRowBackground(Color.white)
-                    }
-                }
-                .listStyle(.plain)
-                .background(Color.white)
+                // Task list
+                taskList
             }
             
-            // Floating action button (positioned with its own container)
-            // Hide when in edit mode
+            // Floating action button
             if !isEditMode {
                 FloatingAddButton {
-                    // Switch to the appropriate tab before showing the add task form
                     switchToAppropriateTabForNewTask()
                     showingAddTask = true
                 }
@@ -266,46 +71,19 @@ struct TaskListView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    withAnimation {
-                        // Toggle edit mode and clear selections when exiting
-                        isEditMode.toggle()
-                        if !isEditMode {
-                            selectedTaskIds.removeAll()
-                        }
-                    }
-                }) {
-                    if isEditMode {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(Color(hex: "#5D4EFF"))
-                    } else {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(Color(hex: "#5D4EFF"))
-                    }
-                }
-                .disabled(tasks.isEmpty)
+                editButton
             }
         }
         .background(Color.white)
         .sheet(isPresented: $showingAddTask) {
             NavigationStack {
-                TaskFormView(mode: .add, onSave: {
-                    // No need to call refreshAllObjects - handled by notification
-                    
-                    // Switch to the appropriate tab after adding a new task
-                    // to ensure the new task will be visible after creation
-                    switchToAppropriateTabForNewTask()
-                })
+                TaskFormView(mode: .add, onSave: { switchToAppropriateTabForNewTask() })
             }
             .presentationDetents([.medium, .large])
         }
         .sheet(item: $selectedTaskId) { taskId in
             NavigationStack {
-                TaskFormView(mode: .edit(taskId), onSave: {
-                    // No need to call refreshAllObjects - handled by notification
-                })
+                TaskFormView(mode: .edit(taskId), onSave: {})
             }
             .presentationDetents([.medium, .large])
             .onDisappear {
@@ -314,184 +92,330 @@ struct TaskListView: View {
         }
         .onAppear {
             updateFetchRequest()
+            if highlightedTaskId != nil {
+                showTaskForHighlighting()
+            }
         }
-        .onChange(of: completedTasksVisible) { _ in
-            updateFetchRequest()
+        .onChange(of: completedTasksVisible) { _ in updateFetchRequest() }
+        .onChange(of: highlightedTaskId) { _ in 
+            if highlightedTaskId != nil {
+                showTaskForHighlighting()
+            }
         }
-        // Listen for specific task changes
         .onReceive(NotificationCenter.default.publisher(for: .tasksDidChange)) { notification in
             DispatchQueue.main.async {
-                // Selective refresh when possible
                 if let taskId = notification.userInfo?["taskId"] as? UUID,
                    let task = tasks.first(where: { $0.id == taskId }) {
-                    // Just refresh this specific task
                     viewContext.refresh(task, mergeChanges: true)
                 } else if notification.userInfo?["batchDelete"] as? Bool == true {
-                    // For batch operations, update the fetch request
                     updateFetchRequest()
                 }
             }
         }
-        // Listen for category changes that might affect task display
         .onReceive(NotificationCenter.default.publisher(for: .categoriesDidChange)) { _ in
-            DispatchQueue.main.async {
-                updateFetchRequest()
-            }
+            DispatchQueue.main.async { updateFetchRequest() }
         }
-        // Fallback for general data changes
         .onReceive(NotificationCenter.default.publisher(for: .dataDidChange)) { _ in
-            DispatchQueue.main.async {
-                updateFetchRequest()
-            }
+            DispatchQueue.main.async { updateFetchRequest() }
         }
     }
     
-    // Custom Segmented Control (Simplified)
-    struct SegmentedFilterView: View {
-        @Binding var selectedFilter: TaskFilter
-        @Environment(\.colorScheme) private var colorScheme
-        @Namespace private var namespace
-        
-        private let accentColor = AppTheme.accentColor
-        
-        var body: some View {
-            VStack(spacing: 0) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 20) {
-                        ForEach(TaskFilter.allCases) { filter in
-                            FilterButton(
-                                filter: filter,
-                                isSelected: selectedFilter == filter,
-                                accentColor: accentColor,
-                                namespace: namespace,
-                                action: {
-                                    withAnimation(.spring(dampingFraction: 0.7)) {
-                                        selectedFilter = filter
-                                    }
+    // MARK: - View Components
+    
+    // Filter header
+    var filterHeader: some View {
+        Group {
+            if !isEditMode {
+                // Regular filter tabs
+                SegmentedFilterView(selectedFilter: $selectedFilter)
+                    .padding(.top, 0)
+                    .padding(.bottom, 0)
+                    .background(Color.white)
+                    .onChange(of: selectedFilter) { _ in
+                        updateFetchRequest()
+                    }
+            } else {
+                // Edit mode header
+                VStack(spacing: 0) {
+                    Divider()
+                    
+                    HStack {
+                        Button(action: {
+                            withAnimation {
+                                if selectedTaskIds.count == tasks.count && !tasks.isEmpty {
+                                    selectedTaskIds.removeAll()
+                                } else {
+                                    selectedTaskIds = Set(tasks.compactMap { $0.id })
                                 }
-                            )
+                            }
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: selectedTaskIds.count == tasks.count && !tasks.isEmpty ? "minus.square" : "checkmark.square")
+                                    .font(.system(size: 15, weight: .medium))
+                                Text(selectedTaskIds.count == tasks.count && !tasks.isEmpty ? "Deselect All" : "Select All")
+                                    .font(.system(size: 15))
+                            }
+                            .foregroundColor(Color(hex: "#5D4EFF"))
                         }
+                        .disabled(tasks.isEmpty)
+                        
+                        Spacer()
+                        
+                        if selectedTaskIds.count > 0 {
+                            Text("\(selectedTaskIds.count) item\(selectedTaskIds.count > 1 ? "s" : "") selected")
+                                .font(.system(size: 15))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            deleteSelectedTasks()
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 15, weight: .medium))
+                                Text("Delete")
+                                    .font(.system(size: 15))
+                            }
+                            .foregroundColor(selectedTaskIds.isEmpty ? .gray : .red)
+                        }
+                        .disabled(selectedTaskIds.isEmpty)
                     }
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 2)
+                    .padding(.vertical, 12)
                 }
-                
-                // Removed the Divider() that was causing the unwanted line
+                .background(Color.white)
             }
         }
     }
     
-    // Extracted subview to simplify the SegmentedFilterView
-    struct FilterButton: View {
-        let filter: TaskFilter
-        let isSelected: Bool
-        let accentColor: Color
-        var namespace: Namespace.ID
-        let action: () -> Void
-        
-        var body: some View {
-            Button(action: action) {
-                VStack(spacing: 4) {
-                    Text(filter.name)
-                        .font(.system(size: 14))
-                        .fontWeight(isSelected ? .semibold : .medium)
-                        .foregroundColor(isSelected ? accentColor : .gray)
-                        .fixedSize(horizontal: true, vertical: false)
-                    
-                    // Indicator line - only visible when selected
-                    ZStack {
-                        if isSelected {
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(accentColor)
-                                .frame(height: 2)
-                                .frame(width: AppTheme.UI.filterIndicatorWidth)
-                                .matchedGeometryEffect(id: "underline", in: namespace)
-                        } else {
-                            // Keeping this empty spacer for proper alignment
-                            Color.clear
-                                .frame(height: 2)
-                                .frame(width: AppTheme.UI.filterIndicatorWidth)
-                        }
-                    }
+    // Task list
+    var taskList: some View {
+        List {
+            if tasks.isEmpty {
+                emptyTaskView
+            } else {
+                // Tasks
+                ForEach(tasks) { task in
+                    taskRow(task: task)
                 }
+                
+                // Bottom spacer
+                Color.clear
+                    .frame(height: 76)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.white)
             }
-            .buttonStyle(.plain)
         }
+        .listStyle(.plain)
+        .background(Color.white)
     }
     
-    // Floating Action Button
-    struct FloatingAddButton: View {
-        var action: () -> Void
-        @Environment(\.colorScheme) private var colorScheme
-        
-        var body: some View {
-            VStack {
-                Spacer()
-                
+    // Empty state view
+    var emptyTaskView: some View {
+        EmptyTaskView(onAddTask: { 
+            switchToAppropriateTabForNewTask()
+            showingAddTask = true 
+        })
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.white)
+    }
+    
+    // Edit button
+    var editButton: some View {
+        Button(action: {
+            withAnimation {
+                isEditMode.toggle()
+                if !isEditMode {
+                    selectedTaskIds.removeAll()
+                }
+            }
+        }) {
+            if isEditMode {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Color(hex: "#5D4EFF"))
+            } else {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color(hex: "#5D4EFF"))
+            }
+        }
+        .disabled(tasks.isEmpty)
+    }
+    
+    // Individual task row
+    func taskRow(task: Task) -> some View {
+        ZStack {
+            // Base task card with highlighting directly in card
+            TaskCardView(task: task, isHighlighted: task.id == highlightedTaskId && animateHighlight)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
+            
+            
+            // Edit mode overlay
+            if isEditMode, let taskId = task.id {
                 HStack {
                     Spacer()
-                    
-                    Button(action: action) {
-                        ZStack {
-                            Circle()
-                                .fill(AppTheme.accentColor)
-                                .frame(width: AppTheme.UI.floatingButtonSize, height: AppTheme.UI.floatingButtonSize)
-                                .shadow(color: AppTheme.accentColor.opacity(colorScheme == .dark ? 0.3 : 0.4), 
-                                        radius: 8, x: 0, y: 4)
-                            
-                            Image(systemName: "plus")
-                                .font(.system(size: 24, weight: .semibold))
+                    // Selection circle
+                    ZStack {
+                        Circle()
+                            .fill(selectedTaskIds.contains(taskId) ? 
+                                  Color(hex: "#5D4EFF") : 
+                                  Color(UIColor.systemFill))
+                            .frame(width: 28, height: 28)
+                        
+                        // Checkmark
+                        if selectedTaskIds.contains(taskId) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                         }
                     }
-                    .buttonStyle(ScaleButtonStyle())
-                    .padding(.trailing, 24)
-                    .padding(.bottom, 20)
+                    .padding(.trailing, 20)
+                    .padding(.leading, 8)
+                }
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if isEditMode, let taskId = task.id {
+                withAnimation {
+                    if selectedTaskIds.contains(taskId) {
+                        selectedTaskIds.remove(taskId)
+                    } else {
+                        selectedTaskIds.insert(taskId)
+                    }
+                }
+            } else if !isEditMode {
+                selectedTaskId = task.id?.uuidString
+            }
+        }
+        .contextMenu {
+            if !isEditMode {
+                Button {
+                    withAnimation {
+                        if let id = task.id {
+                            dataController.toggleTaskCompletion(id: id)
+                        }
+                    }
+                } label: {
+                    Label(task.isCompleted ? "Mark Incomplete" : "Mark Complete", 
+                          systemImage: task.isCompleted ? "circle" : "checkmark.circle.fill")
+                }
+                
+                Button(role: .destructive) {
+                    deleteTask(task)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                deleteTask(task)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .tint(.red)
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            Button {
+                if let id = task.id {
+                    withAnimation {
+                        dataController.toggleTaskCompletion(id: id)
+                    }
+                }
+            } label: {
+                Label(
+                    task.isCompleted ? "Incomplete" : "Complete", 
+                    systemImage: task.isCompleted ? "circle" : "checkmark.circle.fill"
+                )
+            }
+            .tint(task.isCompleted ? .gray : Color(hex: "#5D4EFF"))
+        }
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.white)
+    }
+    
+    // MARK: - Methods
+    
+    // Show task highlighting when tapped from notification
+    private func showTaskForHighlighting() {
+        guard let taskId = highlightedTaskId else { 
+            print("Cannot highlight task: highlightedTaskId is nil")
+            return 
+        }
+        
+        print("Showing highlight for task: \(taskId)")
+        
+        // Reset filter to show all tasks first to ensure task is visible
+        DispatchQueue.main.async {
+            // Reset filter and search to ensure task is visible
+            self.selectedFilter = .all
+            self.searchText = ""
+            self.updateFetchRequest()
+            
+            // Force refresh the view context to ensure we have latest data
+            self.viewContext.refreshAllObjects()
+            
+            // Ensure we have the task in our list
+            let taskExists = self.tasks.contains { $0.id == taskId }
+            print("Task exists in list: \(taskExists)")
+            
+            // Start highlighting with a slight delay to ensure UI has updated
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    self.animateHighlight = true
+                    print("Animation highlight turned ON")
+                }
+                
+                // Schedule highlight off after 4 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        self.animateHighlight = false
+                        print("Animation highlight turned OFF")
+                    }
                 }
             }
         }
     }
     
-    // MARK: - Private Methods
-    
-    
-    // Determine if a new task would be visible in the current filter tab
+    // Check if task would be visible in current filter
     private func isNewTaskVisibleInCurrentTab() -> Bool {
         switch selectedFilter {
-        case .all:
-            return true
-        case .active:
-            return true // New tasks are always active
-        case .completed:
-            return false // New tasks are never completed
-        case .today:
-            // New tasks are visible in Today tab only if due date is set to today
-            let today = Calendar.current.startOfDay(for: Date())
-            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)!
-            return false // Default to false since we can't predict if user will set due date to today
-        case .upcoming:
-            return false // Default to false since we can't predict if user will set future due date
+        case .all: return true
+        case .active: return true
+        case .completed: return false
+        case .today, .upcoming: return false
         }
     }
     
-    // Switch to appropriate tab for new task if current tab wouldn't show it
+    // Switch to appropriate tab for new task
     private func switchToAppropriateTabForNewTask() {
         if !isNewTaskVisibleInCurrentTab() {
             selectedFilter = .all
         }
     }
     
+    // Update fetch request with current filters
     private func updateFetchRequest() {
         var predicates: [NSPredicate] = []
         
-        // Search text filter
+        // Search filter
         if !searchText.isEmpty {
             let searchPredicate = NSPredicate(format: "title CONTAINS[cd] %@ OR taskDescription CONTAINS[cd] %@", 
                                              searchText, searchText)
             predicates.append(searchPredicate)
         }
         
-        // Status filter based on selected filter and settings
+        // Status filter
         switch selectedFilter {
         case .active:
             predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: false)))
@@ -499,65 +423,153 @@ struct TaskListView: View {
             predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: true)))
         case .today:
             let dateRange = DateUtils.getTodayDateRange()
-            
-            // Get tasks where the due date is today
-            let dueTodayPredicate = NSPredicate(format: "dueDate >= %@ AND dueDate < %@", 
-                                               dateRange.startOfDay as NSDate, 
-                                               dateRange.startOfTomorrow as NSDate)
-            
-            predicates.append(dueTodayPredicate)
+            predicates.append(NSPredicate(format: "dueDate >= %@ AND dueDate < %@", 
+                                         dateRange.startOfDay as NSDate, 
+                                         dateRange.startOfTomorrow as NSDate))
             predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: false)))
         case .upcoming:
             let calendar = Calendar.current
             let startOfDay = calendar.startOfDay(for: Date())
             predicates.append(NSPredicate(format: "dueDate > %@ AND isCompleted == %@", startOfDay as NSDate, NSNumber(value: false)))
         case .all:
-            // If completed tasks are hidden in settings, only show active tasks
             if !completedTasksVisible {
                 predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: false)))
             }
         }
         
-        // Create a compound predicate if we have any predicates
+        // Apply predicates
         let predicate = predicates.isEmpty ? nil : NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
-        
-        // Update only the predicate, keeping the sort descriptors the same
         tasks.nsPredicate = predicate
     }
     
+    // Delete a task
     private func deleteTask(_ task: Task) {
         withAnimation {
             dataController.delete(task)
-            // No need to call refreshAllObjects - handled by notification
         }
     }
     
-    private func toggleTaskCompletion(_ task: Task) {
-        guard let id = task.id else { return }
-        
-        withAnimation {
-            dataController.toggleTaskCompletion(id: id)
-            viewContext.refreshAllObjects()
-        }
-    }
-    
-    // Custom edit mode functions
-    
+    // Delete selected tasks
     private func deleteSelectedTasks() {
-        withAnimation(.spring(dampingFraction: 0.7)) {
-            // Find all tasks with matching IDs and delete them
+        withAnimation {
             for taskId in selectedTaskIds {
                 if let taskToDelete = tasks.first(where: { $0.id == taskId }) {
                     deleteTask(taskToDelete)
                 }
             }
-            
-            // Clear selection after deletion
             selectedTaskIds.removeAll()
             
-            // Exit edit mode if there are no more tasks
             if tasks.isEmpty {
                 isEditMode = false
+            }
+        }
+    }
+}
+
+// MARK: - SegmentedFilterView
+
+struct SegmentedFilterView: View {
+    @Binding var selectedFilter: TaskFilter
+    @Environment(\.colorScheme) private var colorScheme
+    @Namespace private var namespace
+    
+    private let accentColor = AppTheme.accentColor
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 20) {
+                    ForEach(TaskFilter.allCases) { filter in
+                        FilterButton(
+                            filter: filter,
+                            isSelected: selectedFilter == filter,
+                            accentColor: accentColor,
+                            namespace: namespace,
+                            action: {
+                                withAnimation(.spring(dampingFraction: 0.7)) {
+                                    selectedFilter = filter
+                                }
+                            }
+                        )
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+            }
+            .frame(maxWidth: .infinity)
+            
+            Divider().opacity(0.5)
+        }
+    }
+}
+
+// MARK: - FilterButton
+
+struct FilterButton: View {
+    let filter: TaskFilter
+    let isSelected: Bool
+    let accentColor: Color
+    var namespace: Namespace.ID
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Text(filter.name)
+                    .font(.system(size: 14))
+                    .fontWeight(isSelected ? .semibold : .medium)
+                    .foregroundColor(isSelected ? accentColor : .gray)
+                    .fixedSize(horizontal: true, vertical: false)
+                
+                ZStack {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(accentColor)
+                            .frame(height: 2)
+                            .frame(width: AppTheme.UI.filterIndicatorWidth)
+                            .matchedGeometryEffect(id: "underline", in: namespace)
+                    } else {
+                        Color.clear
+                            .frame(height: 2)
+                            .frame(width: AppTheme.UI.filterIndicatorWidth)
+                    }
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - FloatingAddButton
+
+struct FloatingAddButton: View {
+    var action: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    
+    var body: some View {
+        VStack {
+            Spacer()
+            
+            HStack {
+                Spacer()
+                
+                Button(action: action) {
+                    ZStack {
+                        Circle()
+                            .fill(AppTheme.accentColor)
+                            .frame(width: AppTheme.UI.floatingButtonSize, height: AppTheme.UI.floatingButtonSize)
+                            .shadow(color: AppTheme.accentColor.opacity(colorScheme == .dark ? 0.3 : 0.4), 
+                                    radius: 8, x: 0, y: 4)
+                        
+                        Image(systemName: "plus")
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                }
+                .buttonStyle(ScaleButtonStyle())
+                .padding(.trailing, 24)
+                .padding(.bottom, 20)
             }
         }
     }
