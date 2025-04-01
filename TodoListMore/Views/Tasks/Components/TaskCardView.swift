@@ -13,6 +13,9 @@ struct TaskCardView: View {
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var dataController: DataController
     
+    // Flag to indicate if this card should be highlighted
+    var isHighlighted: Bool = false
+    
     var body: some View {
         // Get task properties directly using the entity properties
         let isCompleted = task.isCompleted
@@ -32,19 +35,29 @@ struct TaskCardView: View {
                 .fill(colorScheme == .dark ? Color(.systemGray6) : Color.white)
                 .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), 
                         radius: 5, x: 0, y: 2)
-            
-            // Top gradient line for priority
+                        
+            // Top gradient line for priority - only shown when not highlighted
             VStack(spacing: 0) {
-                Rectangle()
-                    .fill(LinearGradient(
-                        gradient: Gradient(colors: gradientColors),
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    ))
-                    .frame(height: 4)
-                    .cornerRadius(14, corners: [.topLeft, .topRight])
+                // Hide priority bar when highlighted
+                if !isHighlighted {
+                    Rectangle()
+                        .fill(LinearGradient(
+                            gradient: Gradient(colors: gradientColors),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ))
+                        .frame(height: 4)
+                        .cornerRadius(14, corners: [.topLeft, .topRight])
+                }
                 
                 Spacer()
+            }
+            
+            // Highlight overlay for notification-tapped task - now on top of everything
+            if isHighlighted {
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.red, lineWidth: 4)
+                    .shadow(color: Color.red.opacity(0.5), radius: 6, x: 0, y: 0)
             }
             
             // Content with reduced spacing - simplified structure
@@ -73,6 +86,33 @@ struct TaskCardView: View {
                 .padding(.horizontal, 16) // Add horizontal padding here
                 .padding(.bottom, 2) // Minimal bottom padding
             }
+            
+            // Content layer without bell icon
+            
+            // Bell icon for notification - positioned as the last item to ensure it's on top
+            if isHighlighted {
+                VStack {
+                    HStack {
+                        Spacer()
+                        Image(systemName: "bell.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(
+                                Circle()
+                                    .fill(Color.red)
+                                    .shadow(color: Color.red.opacity(0.5), radius: 4, x: 0, y: 0)
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white, lineWidth: 1.5)
+                            )
+                            .padding(8)
+                    }
+                    Spacer()
+                }
+                .zIndex(999) // Ensure it's on top of everything
+            }
         }
         .frame(height: description.isEmpty ? AppTheme.UI.cardHeight : AppTheme.UI.cardHeightWithDescription)
         .padding(.horizontal, 4)
@@ -80,9 +120,11 @@ struct TaskCardView: View {
         .contentShape(Rectangle())
         // Styling for completed tasks
         .opacity(isCompleted ? 0.85 : 1.0)
-        // Remove scale effect that was causing width issues
-        // Add subtle animation to state changes
-        .animation(.easeInOut(duration: 0.2), value: isCompleted)
+        // Background highlight for notification
+        .background(isHighlighted ? Color.red.opacity(0.2) : Color.clear)
+        // Animation for highlight
+        .scaleEffect(isHighlighted ? 1.03 : 1.0)
+        .animation(isHighlighted ? .easeInOut(duration: 0.6).repeatForever(autoreverses: true) : .default, value: isHighlighted)
     }
 }
 
@@ -222,3 +264,4 @@ struct TaskCardFooterView: View {
         }
     }
 }
+
