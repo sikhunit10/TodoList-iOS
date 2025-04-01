@@ -186,7 +186,7 @@ struct TaskCardFooterView: View {
     
     var body: some View {
         // Simplified footer with horizontal layout - reduced spacing to prevent truncation
-        HStack(alignment: .center, spacing: 4) {
+        HStack(alignment: .center, spacing: 2) { // Reduced spacing between elements
             // Due date badge - compact format
             if let dueDate = dueDate {
                 HStack(spacing: 3) {
@@ -206,13 +206,14 @@ struct TaskCardFooterView: View {
                 .frame(minWidth: 105, maxWidth: 125, alignment: .leading)
             }
             
-            // Time ago badge, even more compact
+            // Time ago badge, placed right after due date with minimal gap
             if let dateCreated = dateCreated {
                 Text(DateUtils.timeAgo(from: dateCreated))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : Color.secondary.opacity(0.8))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
+                    .padding(.leading, 2) // Small padding to the left
             }
             
             Spacer()
