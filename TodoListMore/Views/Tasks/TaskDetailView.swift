@@ -17,6 +17,14 @@ struct TaskDetailView: View {
     @State private var showingEditSheet = false
     @State private var showingDeleteAlert = false
     
+    // Date formatter for consistent display of dates with time
+    static let dateTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short // Use short date style to save space
+        formatter.timeStyle = .short
+        return formatter
+    }()
+    
     var body: some View {
         List {
             // Task title and completion
@@ -57,7 +65,8 @@ struct TaskDetailView: View {
                     }
                     Spacer()
                     if let dueDate = task.dueDate {
-                        Text(dueDate, style: .date)
+                        // Show both date and time
+                        Text("\(dueDate, formatter: Self.dateTimeFormatter)")
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
                     } else {
@@ -134,7 +143,7 @@ struct TaskDetailView: View {
                                 .foregroundColor(.secondary)
                         }
                         Spacer()
-                        Text(dateCreated, style: .date)
+                        Text("\(dateCreated, formatter: Self.dateTimeFormatter)")
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
                     }
@@ -151,7 +160,7 @@ struct TaskDetailView: View {
                                 .foregroundColor(.secondary)
                         }
                         Spacer()
-                        Text(dateModified, style: .date)
+                        Text("\(dateModified, formatter: Self.dateTimeFormatter)")
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
                     }
