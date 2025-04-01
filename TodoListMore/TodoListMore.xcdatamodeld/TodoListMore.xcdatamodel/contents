@@ -15,6 +15,8 @@
         <attribute name="priority" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="taskDescription" attributeType="String"/>
         <attribute name="title" attributeType="String"/>
+        <attribute name="reminderType" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="customReminderTime" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <relationship name="category" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Category" inverseName="tasks" inverseEntity="Category"/>
     </entity>
 </model>
