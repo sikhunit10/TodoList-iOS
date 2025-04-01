@@ -185,34 +185,34 @@ struct TaskCardFooterView: View {
     }()
     
     var body: some View {
-        // Simplified footer with horizontal layout - reduced spacing to prevent truncation
+        // Simplified footer with horizontal layout
         HStack(alignment: .center, spacing: 4) {
-            // Due date badge - compact format
-            if let dueDate = dueDate {
-                HStack(spacing: 3) {
-                    Image(systemName: "calendar")
-                        .font(.system(size: 10))
-                    Text(dateFormatter.string(from: dueDate))
-                        .font(.system(size: 10, weight: .medium))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .fixedSize(horizontal: false, vertical: true)
+            // Combined due date and time ago in a single container
+            HStack(spacing: 8) {
+                // Due date badge - compact format
+                if let dueDate = dueDate {
+                    HStack(spacing: 3) {
+                        Image(systemName: "calendar")
+                            .font(.system(size: 10))
+                        Text(dateFormatter.string(from: dueDate))
+                            .font(.system(size: 10, weight: .medium))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.secondary)
+                    .padding(.vertical, 3)
+                    .padding(.horizontal, 6)
+                    .background(colorScheme == .dark ? Color.secondary.opacity(0.2) : Color.secondary.opacity(0.08))
+                    .cornerRadius(6)
                 }
-                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.secondary)
-                .padding(.vertical, 3)
-                .padding(.horizontal, 6)
-                .background(colorScheme == .dark ? Color.secondary.opacity(0.2) : Color.secondary.opacity(0.08))
-                .cornerRadius(6)
-                .frame(minWidth: 105, maxWidth: 125, alignment: .leading)
-            }
-            
-            // Time ago badge, even more compact
-            if let dateCreated = dateCreated {
-                Text(DateUtils.timeAgo(from: dateCreated))
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : Color.secondary.opacity(0.8))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                
+                // Time ago badge right next to due date
+                if let dateCreated = dateCreated {
+                    Text(DateUtils.timeAgo(from: dateCreated))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : Color.secondary.opacity(0.8))
+                        .lineLimit(1)
+                }
             }
             
             Spacer()
