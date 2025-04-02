@@ -8,6 +8,7 @@
 import SwiftUI
 import CoreData
 import UserNotifications
+import UIKit
 
 struct TaskFormView: View {
     @Environment(\.dismiss) private var dismiss
@@ -138,10 +139,21 @@ struct TaskFormView: View {
                                 
                                 if hasDueDate {
                                     // Include both date and time components
-                                    DatePicker("Due Date & Time", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
-                                        .datePickerStyle(.compact)
-                                        .padding(.top, 4)
-                                        .transition(.opacity)
+                                    // Track when date picker is presented
+                                    ZStack {
+                                        DatePicker("Due Date & Time", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
+                                            .datePickerStyle(.compact)
+                                            .padding(.top, 4)
+                                            .transition(.opacity)
+                                            .id("datePicker-\(dueDate.timeIntervalSince1970)") // Force refresh when date changes
+                                            .onChange(of: dueDate) { newDate in
+                                                // Using a small delay to make the UI feel smoother
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                    // Simulate tapping elsewhere to dismiss the date picker popup
+                                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                                }
+                                            }
+                                    }
                                 }
                             }
                         }
