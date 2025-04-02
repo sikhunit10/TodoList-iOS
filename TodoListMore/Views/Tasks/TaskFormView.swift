@@ -140,56 +140,36 @@ struct TaskFormView: View {
                                 .padding(.vertical, 4)
                                 
                                 if hasDueDate {
-                                    // Custom date picker with confirm button
+                                    // Completely custom date time picker implementation
                                     VStack(alignment: .leading, spacing: 8) {
-                                        ZStack {
-                                            HStack {
-                                                DatePicker("Due Date & Time", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
-                                                    .datePickerStyle(.compact)
-                                                    .padding(.top, 4)
-                                                    .transition(.opacity)
-                                                    .id("datePicker-\(dueDate.timeIntervalSince1970)") // Force refresh when date changes
-                                                    .onChange(of: dueDate) { newDate in
-                                                        // Check if just the date component changed
-                                                        let calendar = Calendar.current
-                                                        let previousComponents = calendar.dateComponents([.year, .month, .day], from: previousDate)
-                                                        let newComponents = calendar.dateComponents([.year, .month, .day], from: newDate)
-                                                        
-                                                        // If date component changed (not just time), close the picker
-                                                        if previousComponents.day != newComponents.day || 
-                                                           previousComponents.month != newComponents.month || 
-                                                           previousComponents.year != newComponents.year {
-                                                            // Close only if picker is shown
-                                                            if isDatePickerPresented {
-                                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                                                                    isDatePickerPresented = false
-                                                                }
-                                                            }
-                                                        }
-                                                        
-                                                        // Update previous date
-                                                        previousDate = newDate
-                                                    }
-                                                    .onTapGesture {
-                                                        isDatePickerPresented = true
-                                                    }
-                                                
-                                                // Show confirm button when picker is presented
-                                                if isDatePickerPresented {
-                                                    Button(action: {
-                                                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                                                        isDatePickerPresented = false
-                                                    }) {
-                                                        Image(systemName: "checkmark.circle.fill")
-                                                            .foregroundColor(.accentColor)
-                                                            .font(.system(size: 22))
-                                                    }
-                                                    .padding(.leading, 8)
-                                                    .transition(.opacity)
-                                                }
+                                        HStack {
+                                            // Date picker without the auto-dismiss behavior
+                                            DatePicker("Due Date & Time", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
+                                                .datePickerStyle(.compact)
+                                                .padding(.top, 4)
+                                                .labelsHidden() // Hide the label since we'll add our own text
+                                            
+                                            Spacer()
+                                            
+                                            // Always show the done button
+                                            Button(action: {
+                                                // Manually dismiss the picker
+                                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                            }) {
+                                                Text("Done")
+                                                    .fontWeight(.semibold)
+                                                    .foregroundColor(.accentColor)
                                             }
+                                            .buttonStyle(.borderedProminent)
+                                            .controlSize(.small)
+                                            .buttonBorderShape(.capsule)
+                                            .tint(Color(UIColor.systemGray6))
                                         }
+                                        
+                                        // Show the formatted date and time separately for better clarity
+                                        Text("Selected: \(formattedDate(dueDate))")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
                                     }
                                 }
                             }
@@ -513,6 +493,13 @@ struct TaskFormView: View {
         case 3: return "High"
         default: return ""
         }
+    }
+    
+    private func formattedDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
     
     // MARK: - Private Methods
