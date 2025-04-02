@@ -144,8 +144,9 @@ struct TaskFormView: View {
                                     HStack {
                                         ZStack(alignment: .leading) {
                                             // Date picker with animation to adjust position when active
-                                            DatePicker("Due Date & Time", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
+                                            DatePicker("", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
                                                 .datePickerStyle(.compact)
+                                                .labelsHidden()
                                                 .padding(.trailing, isDatePickerPresented ? 70 : 0) // Add padding when picker is open
                                                 .animation(.easeInOut(duration: 0.2), value: isDatePickerPresented)
                                                 .onChange(of: dueDate) { _ in
