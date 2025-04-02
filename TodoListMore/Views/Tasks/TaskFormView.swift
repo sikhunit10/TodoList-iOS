@@ -140,12 +140,13 @@ struct TaskFormView: View {
                                 .padding(.vertical, 4)
                                 
                                 if hasDueDate {
-                                    ZStack(alignment: .trailing) {
-                                        // Standard DatePicker that looks exactly like the default
+                                    HStack {
+                                        // Date picker with animation to adjust position when active
                                         DatePicker("Due Date & Time", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
                                             .datePickerStyle(.compact)
                                             .padding(.top, 4)
-                                            .transition(.opacity)
+                                            .padding(.trailing, isDatePickerPresented ? 65 : 0) // Add padding when picker is open
+                                            .animation(.easeInOut(duration: 0.2), value: isDatePickerPresented)
                                             .onChange(of: dueDate) { _ in
                                                 // Set flag to true when picker is interacted with
                                                 if !isDatePickerPresented {
@@ -155,6 +156,8 @@ struct TaskFormView: View {
                                             .onTapGesture {
                                                 isDatePickerPresented = true
                                             }
+                                        
+                                        Spacer()
                                         
                                         // Only show done button when the picker is active
                                         if isDatePickerPresented {
@@ -171,8 +174,6 @@ struct TaskFormView: View {
                                             .controlSize(.small)
                                             .buttonBorderShape(.capsule)
                                             .tint(Color(UIColor.systemBackground))
-                                            .padding(.trailing, 5)
-                                            .padding(.top, 4)
                                             .transition(.opacity)
                                         }
                                     }
