@@ -140,22 +140,25 @@ struct TaskFormView: View {
                                 .padding(.vertical, 4)
                                 
                                 if hasDueDate {
+                                    // Wrap in fixed height container to prevent expansion
                                     HStack {
-                                        // Date picker with animation to adjust position when active
-                                        DatePicker("Due Date & Time", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
-                                            .datePickerStyle(.compact)
-                                            .padding(.top, 4)
-                                            .padding(.trailing, isDatePickerPresented ? 65 : 0) // Add padding when picker is open
-                                            .animation(.easeInOut(duration: 0.2), value: isDatePickerPresented)
-                                            .onChange(of: dueDate) { _ in
-                                                // Set flag to true when picker is interacted with
-                                                if !isDatePickerPresented {
+                                        ZStack(alignment: .leading) {
+                                            // Date picker with animation to adjust position when active
+                                            DatePicker("Due Date & Time", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
+                                                .datePickerStyle(.compact)
+                                                .padding(.trailing, isDatePickerPresented ? 70 : 0) // Add padding when picker is open
+                                                .animation(.easeInOut(duration: 0.2), value: isDatePickerPresented)
+                                                .onChange(of: dueDate) { _ in
+                                                    // Set flag to true when picker is interacted with
+                                                    if !isDatePickerPresented {
+                                                        isDatePickerPresented = true
+                                                    }
+                                                }
+                                                .onTapGesture {
                                                     isDatePickerPresented = true
                                                 }
-                                            }
-                                            .onTapGesture {
-                                                isDatePickerPresented = true
-                                            }
+                                        }
+                                        .frame(height: 36) // Fixed height to prevent expansion
                                         
                                         Spacer()
                                         
