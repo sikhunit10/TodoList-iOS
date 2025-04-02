@@ -140,36 +140,41 @@ struct TaskFormView: View {
                                 .padding(.vertical, 4)
                                 
                                 if hasDueDate {
-                                    // Completely custom date time picker implementation
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        HStack {
-                                            // Date picker without the auto-dismiss behavior
-                                            DatePicker("Due Date & Time", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
-                                                .datePickerStyle(.compact)
-                                                .padding(.top, 4)
-                                                .labelsHidden() // Hide the label since we'll add our own text
-                                            
-                                            Spacer()
-                                            
-                                            // Always show the done button
+                                    ZStack(alignment: .trailing) {
+                                        // Standard DatePicker that looks exactly like the default
+                                        DatePicker("Due Date & Time", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
+                                            .datePickerStyle(.compact)
+                                            .padding(.top, 4)
+                                            .transition(.opacity)
+                                            .onChange(of: dueDate) { _ in
+                                                // Set flag to true when picker is interacted with
+                                                if !isDatePickerPresented {
+                                                    isDatePickerPresented = true
+                                                }
+                                            }
+                                            .onTapGesture {
+                                                isDatePickerPresented = true
+                                            }
+                                        
+                                        // Only show done button when the picker is active
+                                        if isDatePickerPresented {
                                             Button(action: {
                                                 // Manually dismiss the picker
                                                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                                isDatePickerPresented = false
                                             }) {
                                                 Text("Done")
                                                     .fontWeight(.semibold)
                                                     .foregroundColor(.accentColor)
                                             }
-                                            .buttonStyle(.borderedProminent)
+                                            .buttonStyle(.bordered)
                                             .controlSize(.small)
                                             .buttonBorderShape(.capsule)
-                                            .tint(Color(UIColor.systemGray6))
+                                            .tint(Color(UIColor.systemBackground))
+                                            .padding(.trailing, 5)
+                                            .padding(.top, 4)
+                                            .transition(.opacity)
                                         }
-                                        
-                                        // Show the formatted date and time separately for better clarity
-                                        Text("Selected: \(formattedDate(dueDate))")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
                                     }
                                 }
                             }
