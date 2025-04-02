@@ -45,6 +45,16 @@ struct TaskListView: View {
         animation: .default
     ) private var tasks: FetchedResults<Task>
     
+    // Computed property to filter tasks based on completion visibility
+    private var filteredTasks: [Task] {
+        let tasksArray = Array(tasks)
+        
+        if !completedTasksVisible && selectedFilter == .all {
+            return tasksArray.filter { !$0.isCompleted }
+        }
+        return tasksArray
+    }
+    
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -88,6 +98,8 @@ struct TaskListView: View {
             .presentationDetents([.medium, .large])
             .onDisappear {
                 selectedTaskId = nil
+                // Force update fetch request to ensure proper filtering when form is closed
+                updateFetchRequest()
             }
         }
         .onAppear {
@@ -104,11 +116,18 @@ struct TaskListView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .tasksDidChange)) { notification in
             DispatchQueue.main.async {
+                if notification.userInfo?["batchDelete"] as? Bool == true {
+                    updateFetchRequest()
+                    return
+                }
+                
+                // Always update the fetch request first to maintain filtering consistency
+                updateFetchRequest()
+                
+                // Then refresh individual task if needed
                 if let taskId = notification.userInfo?["taskId"] as? UUID,
                    let task = tasks.first(where: { $0.id == taskId }) {
                     viewContext.refresh(task, mergeChanges: true)
-                } else if notification.userInfo?["batchDelete"] as? Bool == true {
-                    updateFetchRequest()
                 }
             }
         }
@@ -142,22 +161,22 @@ struct TaskListView: View {
                     HStack {
                         Button(action: {
                             withAnimation {
-                                if selectedTaskIds.count == tasks.count && !tasks.isEmpty {
+                                if selectedTaskIds.count == filteredTasks.count && !filteredTasks.isEmpty {
                                     selectedTaskIds.removeAll()
                                 } else {
-                                    selectedTaskIds = Set(tasks.compactMap { $0.id })
+                                    selectedTaskIds = Set(filteredTasks.compactMap { $0.id })
                                 }
                             }
                         }) {
                             HStack(spacing: 5) {
-                                Image(systemName: selectedTaskIds.count == tasks.count && !tasks.isEmpty ? "minus.square" : "checkmark.square")
+                                Image(systemName: selectedTaskIds.count == filteredTasks.count && !filteredTasks.isEmpty ? "minus.square" : "checkmark.square")
                                     .font(.system(size: 15, weight: .medium))
-                                Text(selectedTaskIds.count == tasks.count && !tasks.isEmpty ? "Deselect All" : "Select All")
+                                Text(selectedTaskIds.count == filteredTasks.count && !filteredTasks.isEmpty ? "Deselect All" : "Select All")
                                     .font(.system(size: 15))
                             }
                             .foregroundColor(Color(hex: "#5D4EFF"))
                         }
-                        .disabled(tasks.isEmpty)
+                        .disabled(filteredTasks.isEmpty)
                         
                         Spacer()
                         
@@ -193,11 +212,11 @@ struct TaskListView: View {
     // Task list
     var taskList: some View {
         List {
-            if tasks.isEmpty {
+            if filteredTasks.isEmpty {
                 emptyTaskView
             } else {
                 // Tasks
-                ForEach(tasks) { task in
+                ForEach(filteredTasks) { task in
                     taskRow(task: task)
                 }
                 
@@ -246,7 +265,7 @@ struct TaskListView: View {
                     .foregroundColor(Color(hex: "#5D4EFF"))
             }
         }
-        .disabled(tasks.isEmpty)
+        .disabled(filteredTasks.isEmpty)
     }
     
     // Individual task row
@@ -430,11 +449,11 @@ struct TaskListView: View {
         case .upcoming:
             let calendar = Calendar.current
             let startOfDay = calendar.startOfDay(for: Date())
-            predicates.append(NSPredicate(format: "dueDate > %@ AND isCompleted == %@", startOfDay as NSDate, NSNumber(value: false)))
+            predicates.append(NSPredicate(format: "dueDate > %@", startOfDay as NSDate))
+            predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: false)))
         case .all:
-            if !completedTasksVisible {
-                predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: false)))
-            }
+            // We handle the filter for completed tasks in the computed property
+            break
         }
         
         // Apply predicates
@@ -453,13 +472,13 @@ struct TaskListView: View {
     private func deleteSelectedTasks() {
         withAnimation {
             for taskId in selectedTaskIds {
-                if let taskToDelete = tasks.first(where: { $0.id == taskId }) {
+                if let taskToDelete = filteredTasks.first(where: { $0.id == taskId }) {
                     deleteTask(taskToDelete)
                 }
             }
             selectedTaskIds.removeAll()
             
-            if tasks.isEmpty {
+            if filteredTasks.isEmpty {
                 isEditMode = false
             }
         }

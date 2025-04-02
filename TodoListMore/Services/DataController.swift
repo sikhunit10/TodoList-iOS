@@ -231,7 +231,11 @@ class DataController: ObservableObject {
             task.setValue(Date(), forKey: "dateModified")
             
             // Save with specific notification
-            let userInfo: [AnyHashable: Any] = ["taskId": id, "categoryId": updatedCategoryId as Any]
+            var userInfo: [AnyHashable: Any] = ["taskId": id, "categoryId": updatedCategoryId as Any]
+            // Include completion status if it was updated
+            if let isCompleted = isCompleted {
+                userInfo["isCompleted"] = isCompleted
+            }
             save(notificationName: .tasksDidChange, userInfo: userInfo)
             
             // Always try to reschedule reminder if needed
@@ -255,11 +259,12 @@ class DataController: ObservableObject {
             let tasks = try context.fetch(fetchRequest)
             if let task = tasks.first {
                 let currentValue = task.value(forKey: "isCompleted") as? Bool ?? false
-                task.setValue(!currentValue, forKey: "isCompleted")
+                let newValue = !currentValue
+                task.setValue(newValue, forKey: "isCompleted")
                 task.setValue(Date(), forKey: "dateModified")
                 
-                // Save with specific notification
-                save(notificationName: .tasksDidChange, userInfo: ["taskId": id])
+                // Save with specific notification and include the new completion status
+                save(notificationName: .tasksDidChange, userInfo: ["taskId": id, "isCompleted": newValue])
                 return true
             } else {
                 return false
