@@ -26,6 +26,8 @@ struct TaskFormView: View {
     @State private var categories: [NSManagedObject] = []
     @State private var isLoading = false
     @State private var showCategoryForm = false
+    @State private var isDatePickerPresented = false
+    @State private var previousDate = Date()
     
     // Reminder fields
     @State private var reminderType: Int16 = 0
@@ -138,21 +140,56 @@ struct TaskFormView: View {
                                 .padding(.vertical, 4)
                                 
                                 if hasDueDate {
-                                    // Include both date and time components
-                                    // Track when date picker is presented
-                                    ZStack {
-                                        DatePicker("Due Date & Time", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
-                                            .datePickerStyle(.compact)
-                                            .padding(.top, 4)
-                                            .transition(.opacity)
-                                            .id("datePicker-\(dueDate.timeIntervalSince1970)") // Force refresh when date changes
-                                            .onChange(of: dueDate) { newDate in
-                                                // Using a small delay to make the UI feel smoother
-                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                                    // Simulate tapping elsewhere to dismiss the date picker popup
-                                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                    // Custom date picker with confirm button
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        ZStack {
+                                            HStack {
+                                                DatePicker("Due Date & Time", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
+                                                    .datePickerStyle(.compact)
+                                                    .padding(.top, 4)
+                                                    .transition(.opacity)
+                                                    .id("datePicker-\(dueDate.timeIntervalSince1970)") // Force refresh when date changes
+                                                    .onChange(of: dueDate) { newDate in
+                                                        // Check if just the date component changed
+                                                        let calendar = Calendar.current
+                                                        let previousComponents = calendar.dateComponents([.year, .month, .day], from: previousDate)
+                                                        let newComponents = calendar.dateComponents([.year, .month, .day], from: newDate)
+                                                        
+                                                        // If date component changed (not just time), close the picker
+                                                        if previousComponents.day != newComponents.day || 
+                                                           previousComponents.month != newComponents.month || 
+                                                           previousComponents.year != newComponents.year {
+                                                            // Close only if picker is shown
+                                                            if isDatePickerPresented {
+                                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                                                    isDatePickerPresented = false
+                                                                }
+                                                            }
+                                                        }
+                                                        
+                                                        // Update previous date
+                                                        previousDate = newDate
+                                                    }
+                                                    .onTapGesture {
+                                                        isDatePickerPresented = true
+                                                    }
+                                                
+                                                // Show confirm button when picker is presented
+                                                if isDatePickerPresented {
+                                                    Button(action: {
+                                                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                                        isDatePickerPresented = false
+                                                    }) {
+                                                        Image(systemName: "checkmark.circle.fill")
+                                                            .foregroundColor(.accentColor)
+                                                            .font(.system(size: 22))
+                                                    }
+                                                    .padding(.leading, 8)
+                                                    .transition(.opacity)
                                                 }
                                             }
+                                        }
                                     }
                                 }
                             }
@@ -449,6 +486,9 @@ struct TaskFormView: View {
             }
         }
         .onAppear {
+            // Initialize previousDate with the current dueDate
+            previousDate = dueDate
+            
             loadCategories()
             
             if case .edit(let taskId) = mode {
@@ -513,6 +553,7 @@ struct TaskFormView: View {
                 
                 if let taskDueDate = task.value(forKey: "dueDate") as? Date {
                     dueDate = taskDueDate
+                    previousDate = taskDueDate
                     hasDueDate = true
                 }
                 
