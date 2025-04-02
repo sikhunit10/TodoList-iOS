@@ -140,46 +140,42 @@ struct TaskFormView: View {
                                 .padding(.vertical, 4)
                                 
                                 if hasDueDate {
-                                    // Wrap in fixed height container to prevent expansion
-                                    HStack {
-                                        ZStack(alignment: .leading) {
-                                            // Date picker with animation to adjust position when active
-                                            DatePicker("", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
-                                                .datePickerStyle(.compact)
-                                                .labelsHidden()
-                                                .padding(.trailing, isDatePickerPresented ? 70 : 0) // Add padding when picker is open
-                                                .animation(.easeInOut(duration: 0.2), value: isDatePickerPresented)
-                                                .onChange(of: dueDate) { _ in
-                                                    // Set flag to true when picker is interacted with
-                                                    if !isDatePickerPresented {
-                                                        isDatePickerPresented = true
-                                                    }
-                                                }
-                                                .onTapGesture {
-                                                    isDatePickerPresented = true
-                                                }
-                                        }
-                                        .frame(height: 36) // Fixed height to prevent expansion
-                                        
-                                        Spacer()
+                                    // Simple clean layout
+                                    HStack(alignment: .center, spacing: 12) {
+                                        // Date picker with border
+                                        DatePicker("", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
+                                            .datePickerStyle(.compact)
+                                            .labelsHidden()
+                                            .onChange(of: dueDate) { _ in
+                                                isDatePickerPresented = true
+                                            }
+                                            .onTapGesture {
+                                                isDatePickerPresented = true
+                                            }
+                                            .padding(10)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .fill(colorScheme == .dark ? Color(hex: "#3A3A3C") : Color(hex: "#F9F9FA"))
+                                            )
                                         
                                         // Only show done button when the picker is active
                                         if isDatePickerPresented {
                                             Button(action: {
-                                                // Manually dismiss the picker
                                                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                                                 isDatePickerPresented = false
                                             }) {
                                                 Text("Done")
-                                                    .fontWeight(.semibold)
+                                                    .fontWeight(.medium)
                                                     .foregroundColor(.accentColor)
                                             }
                                             .buttonStyle(.bordered)
-                                            .controlSize(.small)
+                                            .controlSize(.regular)
                                             .buttonBorderShape(.capsule)
-                                            .tint(Color(UIColor.systemBackground))
-                                            .transition(.opacity)
+                                            .tint(colorScheme == .dark ? Color(hex: "#3A3A3C") : Color(hex: "#F9F9FA"))
+                                            .transition(.scale.combined(with: .opacity))
                                         }
+                                        
+                                        Spacer()
                                     }
                                 }
                             }
