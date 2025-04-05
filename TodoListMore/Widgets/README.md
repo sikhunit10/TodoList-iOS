@@ -18,10 +18,32 @@ To integrate these widgets into your project, follow these steps:
 6. Set deployment target to iOS 14.0 or higher
 7. Click Finish
 
+### Resolving @main Attribute Conflict
+
+To resolve the "@main attribute can only apply to one type in a module" error:
+
+1. Select your Widget Extension target
+2. Go to Build Settings
+3. Add a custom compiler flag in "Other Swift Flags": `-DEXTENSION`
+4. This activates the conditional @main attribute in the TodoWidgets.swift file
+
 ## Post-Setup Configuration
 
 1. Replace the auto-generated files with the files in this folder
-2. Make sure your Widget Extension target has access to your Core Data model
+2. Configure App Groups for data sharing:
+
+   a. For the main app:
+      - Select your app target
+      - Go to "Signing & Capabilities"
+      - Add capability "App Groups"
+      - Create a new group: "group.com.yourcompany.TodoListMore" (update with your bundle ID)
+      - Ensure the TodoListMore.entitlements file is included in your project
+
+   b. For the widget extension:
+      - Select your widget extension target
+      - Go to "Signing & Capabilities"
+      - Add capability "App Groups" 
+      - Select the same group you created for the main app
 3. Update the app's Info.plist to add URL scheme support:
 
 ```xml

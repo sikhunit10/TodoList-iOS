@@ -28,6 +28,14 @@ class DataController: ObservableObject {
         // Initialize with regular NSPersistentContainer for local storage
         container = NSPersistentContainer(name: "TodoListMore")
         
+        // Configure for app group sharing (for widget access)
+        let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.yourcompany.TodoListMore")?.appendingPathComponent("TodoListMore.sqlite")
+        
+        if let storeURL = storeURL {
+            let storeDescription = NSPersistentStoreDescription(url: storeURL)
+            container.persistentStoreDescriptions = [storeDescription]
+        }
+        
         // Configure container for local storage
         container.loadPersistentStores { description, error in
             if let error = error {

@@ -18,10 +18,21 @@ struct TodoWidgetProvider: TimelineProvider {
     let viewContext: NSManagedObjectContext
     
     init() {
+        // Set up container with shared app group to access main app's data
         let container = NSPersistentContainer(name: "TodoListMore")
+        
+        // Use shared App Group container for accessing the same store as the main app
+        let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.yourcompany.TodoListMore")?.appendingPathComponent("TodoListMore.sqlite")
+        
+        if let storeURL = storeURL {
+            let storeDescription = NSPersistentStoreDescription(url: storeURL)
+            container.persistentStoreDescriptions = [storeDescription]
+        }
+        
         container.loadPersistentStores { (storeDescription, error) in
             if let error = error as NSError? {
-                fatalError("Failed to load stores: \(error), \(error.userInfo)")
+                print("Failed to load stores for widget: \(error), \(error.userInfo)")
+                // Don't crash in widget, just show empty state
             }
         }
         viewContext = container.viewContext
@@ -290,7 +301,10 @@ struct QuickAddTaskWidget: Widget {
 
 // MARK: - Widget Bundle
 
+// For Widget Extension target use @main, but when included in main app, use a different name
+#if EXTENSION
 @main
+#endif
 struct TodoWidgets: WidgetBundle {
     var body: some Widget {
         TodayTasksWidget()
