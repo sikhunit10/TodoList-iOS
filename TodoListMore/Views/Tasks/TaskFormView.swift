@@ -20,13 +20,12 @@ struct TaskFormView: View {
     @State private var title = ""
     @State private var taskDescription = ""
     @State private var dueDate = Date()
-    @State private var hasDueDate = false
     @State private var priority: Int16 = 1
     @State private var selectedCategoryId: UUID? = nil
     @State private var categories: [NSManagedObject] = []
     @State private var isLoading = false
     @State private var showCategoryForm = false
-    @State private var isDatePickerPresented = false
+    // State for tracking date changes
     @State private var previousDate = Date()
     
     // Reminder fields
@@ -102,17 +101,34 @@ struct TaskFormView: View {
                             .padding(.bottom, 4)
                             
                             VStack(spacing: 12) {
-                                TextField("Title", text: $title)
-                                    .font(.system(size: 17, weight: .medium))
-                                    .padding()
-                                    .background(colorScheme == .dark ? Color(hex: "#3A3A3C") : Color(hex: "#F9F9FA"))
-                                    .cornerRadius(12)
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(spacing: 4) {
+                                        Text("Title")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                        Circle()
+                                            .fill(Color.accentColor)
+                                            .frame(width: 4, height: 4)
+                                    }
+                                    
+                                    TextField("Enter task title", text: $title)
+                                        .font(.system(size: 17, weight: .medium))
+                                        .padding()
+                                        .background(colorScheme == .dark ? Color(hex: "#3A3A3C") : Color(hex: "#F9F9FA"))
+                                        .cornerRadius(12)
+                                }
                                 
-                                TextField("Description", text: $taskDescription, axis: .vertical)
-                                    .lineLimit(4...6)
-                                    .padding()
-                                    .background(colorScheme == .dark ? Color(hex: "#3A3A3C") : Color(hex: "#F9F9FA"))
-                                    .cornerRadius(12)
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Description")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    
+                                    TextField("Enter task description (optional)", text: $taskDescription, axis: .vertical)
+                                        .lineLimit(4...6)
+                                        .padding()
+                                        .background(colorScheme == .dark ? Color(hex: "#3A3A3C") : Color(hex: "#F9F9FA"))
+                                        .cornerRadius(12)
+                                }
                             }
                         }
                         .padding()
@@ -126,57 +142,33 @@ struct TaskFormView: View {
                                 Image(systemName: "calendar")
                                     .foregroundColor(.accentColor)
                                     .frame(width: 22)
-                                Text("Due Date")
-                                    .font(.headline)
+                                HStack(spacing: 4) {
+                                    Text("Due Date")
+                                        .font(.headline)
+                                    Circle()
+                                        .fill(Color.accentColor)
+                                        .frame(width: 4, height: 4)
+                                }
                             }
                             .padding(.bottom, 4)
                             
                             VStack(spacing: 12) {
-                                Toggle(isOn: $hasDueDate) {
-                                    Text("Set Due Date")
-                                        .foregroundColor(.primary)
-                                }
-                                .toggleStyle(SwitchToggleStyle(tint: .accentColor))
-                                .padding(.vertical, 4)
-                                
-                                if hasDueDate {
-                                    // Simple clean layout
-                                    HStack(alignment: .center, spacing: 12) {
-                                        // Date picker with border
-                                        DatePicker("", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
-                                            .datePickerStyle(.compact)
-                                            .labelsHidden()
-                                            .onChange(of: dueDate) { _ in
-                                                isDatePickerPresented = true
-                                            }
-                                            .onTapGesture {
-                                                isDatePickerPresented = true
-                                            }
-                                            .padding(10)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .fill(colorScheme == .dark ? Color(hex: "#3A3A3C") : Color(hex: "#F9F9FA"))
-                                            )
-                                        
-                                        // Only show done button when the picker is active
-                                        if isDatePickerPresented {
-                                            Button(action: {
-                                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                                                isDatePickerPresented = false
-                                            }) {
-                                                Text("Done")
-                                                    .fontWeight(.medium)
-                                                    .foregroundColor(.accentColor)
-                                            }
-                                            .buttonStyle(.bordered)
-                                            .controlSize(.regular)
-                                            .buttonBorderShape(.capsule)
-                                            .tint(colorScheme == .dark ? Color(hex: "#3A3A3C") : Color(hex: "#F9F9FA"))
-                                            .transition(.scale.combined(with: .opacity))
+                                // Simple clean layout
+                                HStack(alignment: .center, spacing: 12) {
+                                    // Date picker with border
+                                    DatePicker("", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
+                                        .datePickerStyle(.compact)
+                                        .labelsHidden()
+                                        .onChange(of: dueDate) { newDate in
+                                            previousDate = newDate
                                         }
-                                        
-                                        Spacer()
-                                    }
+                                        .padding(10)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .fill(colorScheme == .dark ? Color(hex: "#3A3A3C") : Color(hex: "#F9F9FA"))
+                                        )
+                                    
+                                    Spacer()
                                 }
                             }
                         }
@@ -191,8 +183,13 @@ struct TaskFormView: View {
                                 Image(systemName: "flag.fill")
                                     .foregroundColor(.accentColor)
                                     .frame(width: 22)
-                                Text("Priority")
-                                    .font(.headline)
+                                HStack(spacing: 4) {
+                                    Text("Priority")
+                                        .font(.headline)
+                                    Circle()
+                                        .fill(Color.accentColor)
+                                        .frame(width: 4, height: 4)
+                                }
                             }
                             .padding(.bottom, 4)
                             
@@ -375,9 +372,8 @@ struct TaskFormView: View {
                         .cornerRadius(16)
                         .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.0 : 0.05), radius: 8, x: 0, y: 2)
                         
-                        // Reminder Card - only show if there's a due date
-                        if hasDueDate {
-                            VStack(alignment: .leading, spacing: 16) {
+                        // Reminder Card
+                        VStack(alignment: .leading, spacing: 16) {
                                 HStack {
                                     Image(systemName: "bell.fill")
                                         .foregroundColor(.accentColor)
@@ -439,7 +435,7 @@ struct TaskFormView: View {
                                                     .accentColor(.accentColor)
                                             }
                                             
-                                            Text("Reminder will be sent \(Int(customReminderMinutes)) minutes before the task is due")
+                                            Text("Reminder will be sent \(Int(customReminderMinutes) >= 60 ? "\(Int(customReminderMinutes) / 60) hour\(Int(customReminderMinutes) / 60 > 1 ? "s" : "")\(Int(customReminderMinutes) % 60 > 0 ? " \(Int(customReminderMinutes) % 60) minutes" : "")" : "\(Int(customReminderMinutes)) minutes") before the task is due")
                                                 .font(.caption)
                                                 .foregroundColor(.secondary)
                                         }
@@ -454,7 +450,6 @@ struct TaskFormView: View {
                             .background(colorScheme == .dark ? Color(hex: "#2C2C2E") : .white)
                             .cornerRadius(16)
                             .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.0 : 0.05), radius: 8, x: 0, y: 2)
-                        }
                     }
                     .padding()
                 }
@@ -547,7 +542,6 @@ struct TaskFormView: View {
                 if let taskDueDate = task.value(forKey: "dueDate") as? Date {
                     dueDate = taskDueDate
                     previousDate = taskDueDate
-                    hasDueDate = true
                 }
                 
                 priority = task.value(forKey: "priority") as? Int16 ?? 1
@@ -601,10 +595,10 @@ struct TaskFormView: View {
             if let _ = dataController.addTask(
                 title: title,
                 description: taskDescription,
-                dueDate: hasDueDate ? dueDate : nil,
+                dueDate: dueDate,
                 priority: priority,
                 categoryId: selectedCategoryId,
-                reminderType: hasDueDate ? reminderType : 0,
+                reminderType: reminderType,
                 customReminderTime: customReminderTime
             ) {
                 success = true
@@ -616,12 +610,12 @@ struct TaskFormView: View {
                     id: uuid,
                     title: title,
                     description: taskDescription,
-                    dueDate: hasDueDate ? dueDate : nil,
-                    removeDueDate: !hasDueDate,
+                    dueDate: dueDate,
+                    removeDueDate: false,
                     priority: priority,
                     categoryId: selectedCategoryId,
                     removeCategoryId: selectedCategoryId == nil,
-                    reminderType: hasDueDate ? reminderType : 0,
+                    reminderType: reminderType,
                     customReminderTime: customReminderTime
                 )
             }
@@ -637,6 +631,7 @@ struct TaskFormView: View {
         }
         return false
     }
+    
 }
 
 // Simple enum to represent form mode without directly using Core Data entities
