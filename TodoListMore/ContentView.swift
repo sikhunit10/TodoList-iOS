@@ -9,7 +9,9 @@ import SwiftUI
 import UIKit
 
 struct ContentView: View {
-    @State private var selectedTab = 0
+    // Allow external control of tab selection for deep linking
+    @Binding var tabSelection: Int
+    @Binding var showNewTaskSheet: Bool
     @State private var highlightedTaskId: UUID?
     
     // For logging purposes
@@ -18,12 +20,24 @@ struct ContentView: View {
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var dataController: DataController
     
+    // Default initializer for previews and when bindings aren't needed
+    init() {
+        self._tabSelection = .constant(0)
+        self._showNewTaskSheet = .constant(false)
+    }
+    
+    // Initializer that accepts bindings for deep linking
+    init(tabSelection: Binding<Int>, showNewTaskSheet: Binding<Bool>) {
+        self._tabSelection = tabSelection
+        self._showNewTaskSheet = showNewTaskSheet
+    }
+    
     // Define app accent colors
     private let accentLight = Color(hex: "#5D4EFF")
     private let accentDark = Color(hex: "#6F61FF")
     
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: $tabSelection) {
             // Tasks tab - white navigation bar with inline title
             NavigationStack {
                 TaskListView(highlightedTaskId: $highlightedTaskId)
@@ -31,6 +45,11 @@ struct ContentView: View {
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbarBackground(.visible, for: .navigationBar)
                     .toolbarBackground(Color.white, for: .navigationBar) // Force white background
+                    .sheet(isPresented: $showNewTaskSheet) {
+                        TaskFormView(mode: .add) {
+                            showNewTaskSheet = false
+                        }
+                    }
             }
             .background(Color.white) // Force white for any transparent areas
             .tabItem {
@@ -74,7 +93,7 @@ struct ContentView: View {
                 highlightedTaskId = taskId
                 
                 // Then switch to the tasks tab
-                selectedTab = 0
+                tabSelection = 0
                 
                 // Reset the highlight after 5 seconds to match the TaskListView timeout
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {

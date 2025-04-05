@@ -16,6 +16,15 @@ A feature-rich task management application built with SwiftUI and CoreData for i
 - Local storage with CoreData
 - Dark and light mode support
 - Responsive layout for iPhone and iPad
+- Home Screen widgets for quick access to tasks and actions
+
+### Widgets
+
+This app includes three Home Screen widgets:
+
+1. **Today's Tasks Widget**: Shows tasks due today with their titles and times
+2. **Priority Tasks Widget**: Shows high priority tasks that need your attention
+3. **Quick Add Task Widget**: A button to quickly add new tasks straight from your Home Screen
 
 ## Technical Details
 
@@ -32,6 +41,7 @@ A feature-rich task management application built with SwiftUI and CoreData for i
 - **TaskListView**: Main interface with filtering and search capabilities
 - **TaskFormView**: Rich form for task creation and editing
 - **CategoryListView**: Management interface for categories
+- **TodoWidgets**: WidgetKit extensions for Home Screen widgets
 
 ### Requirements
 - iOS 16.0+ / iPadOS 16.0+

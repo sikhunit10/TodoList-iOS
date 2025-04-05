@@ -6,5 +6,18 @@
 	<array>
 		<string>processing</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.yourcompany.TodoListMore</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>todolistmore</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

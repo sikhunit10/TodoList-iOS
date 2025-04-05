@@ -66,6 +66,10 @@ struct TodoListMoreApp: App {
     // Inject our CoreData controller into the SwiftUI environment
     @StateObject private var dataController = DataController.shared
     
+    // For handling widget deep links
+    @State private var tabSelection = 0
+    @State private var showNewTaskSheet = false
+    
     init() {
         // Since we can't effectively change the appearance of SearchBar across different views,
         // we'll leave it at the default values and let SwiftUI handle it naturally
@@ -73,17 +77,22 @@ struct TodoListMoreApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, dataController.container.viewContext)
-                .environmentObject(dataController)
-                .onAppear {
-                    // Handle any pending notifications when the app starts
-                    UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
-                        if notifications.count > 0 {
-                            print("App launched with \(notifications.count) delivered notifications")
-                        }
+            ContentView(
+                tabSelection: $tabSelection, 
+                showNewTaskSheet: $showNewTaskSheet
+            )
+            .environment(\.managedObjectContext, dataController.container.viewContext)
+            .environmentObject(dataController)
+            .onAppear {
+                // Handle any pending notifications when the app starts
+                UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
+                    if notifications.count > 0 {
+                        print("App launched with \(notifications.count) delivered notifications")
                     }
                 }
+            }
+            // Enable handling deep links from widgets
+            .handleDeepLink(selection: $tabSelection, showNewTaskSheet: $showNewTaskSheet)
         }
     }
 }
