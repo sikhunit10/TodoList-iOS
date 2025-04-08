@@ -7,6 +7,7 @@
 
 import CoreData
 import SwiftUI
+import WidgetKit
 
 // Define notification names for data changes
 extension Notification.Name {
@@ -126,6 +127,10 @@ class DataController: ObservableObject {
                 
                 // Post a notification that data has changed with userInfo if provided
                 NotificationCenter.default.post(name: notificationName, object: nil, userInfo: userInfo)
+                
+                // Refresh widget data immediately
+                WidgetCenter.shared.reloadAllTimelines()
+                print("App - Refreshing widget timelines after data change")
                 
             } catch {
                 print("Error saving context: \(error.localizedDescription)")
@@ -401,6 +406,9 @@ class DataController: ObservableObject {
                 object: nil, 
                 userInfo: ["categoryId": id]
             )
+            
+            // Refresh widgets after category changes
+            WidgetCenter.shared.reloadAllTimelines()
         }
         
         return success
@@ -442,6 +450,9 @@ class DataController: ObservableObject {
                             object: nil,
                             userInfo: ["batchDelete": true]
                         )
+                        
+                        // Refresh widgets after batch operations
+                        WidgetCenter.shared.reloadAllTimelines()
                     }
                 }
             } catch {
