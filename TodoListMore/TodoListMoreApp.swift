@@ -8,6 +8,7 @@
 import SwiftUI
 import CoreData
 import UserNotifications
+import WidgetKit
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
@@ -103,11 +104,17 @@ struct TodoListMoreApp: App {
                     switch deepLink {
                     case .today:
                         tabSelection = 0 // Tasks tab
+                        // Refresh widgets when navigating from widget
+                        WidgetCenter.shared.reloadAllTimelines()
                     case .priority:
                         tabSelection = 0 // Tasks tab
+                        // Refresh widgets when navigating from widget
+                        WidgetCenter.shared.reloadAllTimelines()
                     case .newTask:
                         tabSelection = 0 // Tasks tab
                         showNewTaskSheet = true
+                        // Refresh widgets when creating a new task
+                        WidgetCenter.shared.reloadAllTimelines()
                     }
                 }
             }
