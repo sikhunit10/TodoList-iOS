@@ -15,6 +15,7 @@ struct TodoWidgetEntry: TimelineEntry {
     let date: Date
     let todayTasks: [TaskInfo]
     let priorityTasks: [TaskInfo]
+    let refreshToken: UUID  // Add a refresh token to force widget updates
 }
 
 // A lightweight task info struct to avoid CoreData objects in the widget
@@ -136,7 +137,7 @@ struct TodoWidgetProvider: TimelineProvider {
     
     func placeholder(in context: Context) -> TodoWidgetEntry {
         // Return empty placeholder data
-        return TodoWidgetEntry(date: Date(), todayTasks: [], priorityTasks: [])
+        return TodoWidgetEntry(date: Date(), todayTasks: [], priorityTasks: [], refreshToken: UUID())
     }
     
     func getSnapshot(in context: Context, completion: @escaping (TodoWidgetEntry) -> Void) {
@@ -156,8 +157,8 @@ struct TodoWidgetProvider: TimelineProvider {
             print("Widget - Today's tasks: \(entry.todayTasks.map { $0.title })")
         }
         
-        // Set shorter update interval for frequent refreshes
-        let nextUpdateDate = Calendar.current.date(byAdding: .minute, value: 1, to: currentDate) ?? currentDate
+        // Set very short update interval (10 seconds) for frequent refreshes
+        let nextUpdateDate = Calendar.current.date(byAdding: .second, value: 10, to: currentDate) ?? currentDate
         
         let timeline = Timeline(entries: [entry], policy: .after(nextUpdateDate))
         completion(timeline)
@@ -165,13 +166,21 @@ struct TodoWidgetProvider: TimelineProvider {
     
     // Helper to get data for the widget
     private func getWidgetEntry() -> TodoWidgetEntry {
+        // Clear any caches to ensure we're getting fresh data
+        viewContext.reset()
+        
         // Get today's tasks
         let todayTasks = fetchTodayTasks()
         
         // Get priority tasks
         let priorityTasks = fetchPriorityTasks()
         
-        return TodoWidgetEntry(date: Date(), todayTasks: todayTasks, priorityTasks: priorityTasks)
+        return TodoWidgetEntry(
+            date: Date(), 
+            todayTasks: todayTasks, 
+            priorityTasks: priorityTasks,
+            refreshToken: UUID()  // Generate new token for each refresh
+        )
     }
     
     // Return a single placeholder task for error cases rather than empty array
@@ -323,36 +332,36 @@ struct TodayTasksWidgetView: View {
     let entry: TodoWidgetEntry
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 5) {
             // Header
             HStack {
                 Image(systemName: "calendar")
                     .foregroundColor(.blue)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                 Text("Today's Tasks")
-                    .font(.headline)
+                    .font(.subheadline)
                     .fontWeight(.bold)
                 Spacer()
             }
-            .padding(.bottom, 4)
+            .padding(.bottom, 2)
             
             if entry.todayTasks.isEmpty || (entry.todayTasks.count == 1 && entry.todayTasks[0].title == "No tasks available") {
                 Spacer()
                 VStack(spacing: 4) {
                     Image(systemName: "checkmark.circle")
-                        .font(.system(size: 20))
+                        .font(.system(size: 18))
                         .foregroundColor(.blue.opacity(0.7))
-                    Text("No tasks due today")
-                        .font(.callout)
+                    Text("No tasks today")
+                        .font(.system(size: 12))
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 Spacer()
             } else {
                 // Tasks list with improved design
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 5) {
                     ForEach(entry.todayTasks.prefix(4)) { task in
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             // Task status indicator
                             ZStack {
                                 Circle()
@@ -368,7 +377,7 @@ struct TodayTasksWidgetView: View {
                             
                             // Task title with one-line overflow ellipsis
                             Text(task.title)
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: 12, weight: .medium))
                                 .lineLimit(1)
                                 .truncationMode(.tail)
                             
@@ -377,12 +386,12 @@ struct TodayTasksWidgetView: View {
                             // Time badge
                             if let dueDate = task.dueDate {
                                 Text(formatTime(dueDate))
-                                    .font(.system(size: 11, weight: .medium))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
+                                    .font(.system(size: 10, weight: .medium))
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
                                     .background(Color.blue.opacity(0.1))
                                     .foregroundColor(.blue)
-                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    .clipShape(RoundedRectangle(cornerRadius: 3))
                             }
                         }
                         .padding(.vertical, 2)
@@ -399,8 +408,8 @@ struct TodayTasksWidgetView: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .containerBackground(for: .widget) {
             Color(.systemBackground)
         }
@@ -410,7 +419,7 @@ struct TodayTasksWidgetView: View {
     
     private func formatTime(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
+        formatter.dateFormat = "h:mm"
         return formatter.string(from: date)
     }
 }
@@ -420,36 +429,36 @@ struct PriorityTasksWidgetView: View {
     let entry: TodoWidgetEntry
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 5) {
             // Header
             HStack {
                 Image(systemName: "exclamationmark.triangle")
                     .foregroundColor(.red)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                 Text("Priority Tasks")
-                    .font(.headline)
+                    .font(.subheadline)
                     .fontWeight(.bold)
                 Spacer()
             }
-            .padding(.bottom, 4)
+            .padding(.bottom, 2)
             
             if entry.priorityTasks.isEmpty || (entry.priorityTasks.count == 1 && entry.priorityTasks[0].title == "No tasks available") {
                 Spacer()
                 VStack(spacing: 4) {
                     Image(systemName: "flag.slash")
-                        .font(.system(size: 20))
+                        .font(.system(size: 18))
                         .foregroundColor(.red.opacity(0.7))
-                    Text("No high priority tasks")
-                        .font(.callout)
+                    Text("No priority tasks")
+                        .font(.system(size: 12))
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 Spacer()
             } else {
                 // Tasks list with improved design
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 5) {
                     ForEach(entry.priorityTasks.prefix(4)) { task in
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             // Priority indicator
                             Image(systemName: "flag.fill")
                                 .font(.system(size: 10))
@@ -458,7 +467,7 @@ struct PriorityTasksWidgetView: View {
                             
                             // Task title with one-line overflow ellipsis
                             Text(task.title)
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: 12, weight: .medium))
                                 .lineLimit(1)
                                 .truncationMode(.tail)
                             
@@ -467,12 +476,12 @@ struct PriorityTasksWidgetView: View {
                             // Date badge
                             if let dueDate = task.dueDate {
                                 Text(formatDate(dueDate))
-                                    .font(.system(size: 11, weight: .medium))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
+                                    .font(.system(size: 10, weight: .medium))
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
                                     .background(Color.red.opacity(0.1))
                                     .foregroundColor(.red)
-                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    .clipShape(RoundedRectangle(cornerRadius: 3))
                             }
                         }
                         .padding(.vertical, 2)
@@ -489,8 +498,8 @@ struct PriorityTasksWidgetView: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .containerBackground(for: .widget) {
             Color(.systemBackground)
         }
@@ -604,7 +613,8 @@ struct QuickAddTaskWidget: Widget {
             TaskInfo(id: UUID(), title: "Complete project", dueDate: Date().addingTimeInterval(3600), priority: 2, isCompleted: false),
             TaskInfo(id: UUID(), title: "Call client", dueDate: Date().addingTimeInterval(7200), priority: 3, isCompleted: false)
         ],
-        priorityTasks: []
+        priorityTasks: [],
+        refreshToken: UUID()
     )
 }
 
@@ -632,12 +642,13 @@ struct QuickAddTaskWidget: Widget {
         priorityTasks: [
             TaskInfo(id: UUID(), title: "Critical bug fix", dueDate: Date().addingTimeInterval(86400), priority: 3, isCompleted: false),
             TaskInfo(id: UUID(), title: "Client emergency", dueDate: Date().addingTimeInterval(172800), priority: 3, isCompleted: false)
-        ]
+        ],
+        refreshToken: UUID()
     )
 }
 
 #Preview("Quick Add", as: .systemSmall) {
     QuickAddTaskWidget()
 } timeline: {
-    TodoWidgetEntry(date: .now, todayTasks: [], priorityTasks: [])
+    TodoWidgetEntry(date: .now, todayTasks: [], priorityTasks: [], refreshToken: UUID())
 }
