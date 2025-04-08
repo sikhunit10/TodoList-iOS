@@ -101,7 +101,7 @@ class DataController: ObservableObject {
                 objectWillChange.send()
                 
                 // Debug: Log where CoreData is stored for widget troubleshooting
-                let groupID = "group.com.harjot.TodoListMore.SimpleTodoWidget"
+                let groupID = "group.com.harjot.TodoListApp.SimpleTodoWidget"
                 if let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID)?.appendingPathComponent("TodoListMore.sqlite") {
                     print("App - Saved data to shared container at: \(storeURL)")
                     print("App - File exists: \(FileManager.default.fileExists(atPath: storeURL.path))")
