@@ -30,7 +30,10 @@ class DataController: ObservableObject {
         container = NSPersistentContainer(name: "TodoListMore")
         
         // Configure for app group sharing (for widget access)
-        // Make sure this group ID matches exactly what's in your entitlements files
+        // IMPORTANT: This group ID must match EXACTLY in:
+        // 1. All entitlements files
+        // 2. All places where containerURL(forSecurityApplicationGroupIdentifier:) is called
+        // 3. Xcode project capabilities configuration
         let groupID = "group.com.harjot.TodoListApp.SimpleTodoWidget"
         
         print("App - Using app group ID: \(groupID)")
