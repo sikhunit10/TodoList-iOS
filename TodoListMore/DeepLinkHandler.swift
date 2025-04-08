@@ -1,70 +1,47 @@
-import Foundation
+//
+//  DeepLinkHandler.swift
+//  TodoListMore
+//
+//  Created by Harjot Singh on 05/04/25.
+//
+
 import SwiftUI
 
-// Class to handle deep links from widgets
-class DeepLinkHandler {
+enum DeepLink: Equatable {
+    case today
+    case priority
+    case newTask
     
-    // Deep link destinations
-    enum DeepLinkDestination {
-        case today
-        case priority
-        case newTask
-        case none
-    }
-    
-    // Parse URL to determine which destination to navigate to
-    static func parseDeepLink(url: URL) -> DeepLinkDestination {
-        guard url.scheme == "todolistmore" else {
-            return .none
+    init?(url: URL) {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
+              let scheme = components.scheme,
+              scheme == "todolistmore" else {
+            return nil
         }
         
-        switch url.host {
+        guard let host = components.host else {
+            return nil
+        }
+        
+        switch host {
         case "today":
-            return .today
+            self = .today
         case "priority":
-            return .priority
+            self = .priority
         case "new":
-            return .newTask
+            self = .newTask
         default:
-            return .none
+            return nil
         }
     }
 }
 
-// View modifier to handle deep link navigation
-struct DeepLinkHandlerModifier: ViewModifier {
-    @Binding var selection: Int
-    @Binding var showNewTaskSheet: Bool
+class DeepLinkManager: ObservableObject {
+    @Published var currentDeepLink: DeepLink?
     
-    func body(content: Content) -> some View {
-        content
-            .onOpenURL { url in
-                let destination = DeepLinkHandler.parseDeepLink(url: url)
-                handleNavigation(to: destination)
-            }
-    }
-    
-    private func handleNavigation(to destination: DeepLinkHandler.DeepLinkDestination) {
-        switch destination {
-        case .today:
-            // Navigate to today's tasks (assuming tab index 0)
-            selection = 0
-        case .priority:
-            // Navigate to tasks filtered by priority
-            selection = 0 // Navigate to tasks tab first
-            // Here you would also need to set a filter state for priority
-        case .newTask:
-            // Show the new task sheet
-            showNewTaskSheet = true
-        case .none:
-            break
+    func handle(url: URL) {
+        if let deepLink = DeepLink(url: url) {
+            self.currentDeepLink = deepLink
         }
-    }
-}
-
-// Extension to make it easier to apply the modifier
-extension View {
-    func handleDeepLink(selection: Binding<Int>, showNewTaskSheet: Binding<Bool>) -> some View {
-        self.modifier(DeepLinkHandlerModifier(selection: selection, showNewTaskSheet: showNewTaskSheet))
     }
 }

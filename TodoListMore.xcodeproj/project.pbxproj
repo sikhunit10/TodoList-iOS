@@ -6,11 +6,59 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		14BB9B8C2DA1450400208176 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1443B5672DA13E9300E85D6D /* WidgetKit.framework */; };
+		14BB9B8D2DA1450400208176 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1443B5692DA13E9300E85D6D /* SwiftUI.framework */; };
+		14BB9B9C2DA1450500208176 /* SimpleTodoWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 14BB9B8B2DA1450400208176 /* SimpleTodoWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		14BB9B9A2DA1450500208176 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 14C510152D905B2800CB231A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 14BB9B8A2DA1450400208176;
+			remoteInfo = SimpleTodoWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		1443B57E2DA13E9400E85D6D /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				14BB9B9C2DA1450500208176 /* SimpleTodoWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		141ACB462DA5490D00D89F25 /* SimpleTodoWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SimpleTodoWidgetExtension.entitlements; sourceTree = "<group>"; };
+		1443B5672DA13E9300E85D6D /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		1443B5692DA13E9300E85D6D /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		14BB9B8B2DA1450400208176 /* SimpleTodoWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SimpleTodoWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		14C5101D2D905B2800CB231A /* TodoListMore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TodoListMore.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		141ACB482DA54BF200D89F25 /* Exceptions for "TodoListMore" folder in "SimpleTodoWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				TodoListMore.xcdatamodeld,
+			);
+			target = 14BB9B8A2DA1450400208176 /* SimpleTodoWidgetExtension */;
+		};
+		14BB9BA02DA1450500208176 /* Exceptions for "SimpleTodoWidget" folder in "SimpleTodoWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 14BB9B8A2DA1450400208176 /* SimpleTodoWidgetExtension */;
+		};
 		14C5106E2D9067CD00CB231A /* Exceptions for "TodoListMore" folder in "TodoListMore" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -21,10 +69,19 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		14BB9B8E2DA1450400208176 /* SimpleTodoWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				14BB9BA02DA1450500208176 /* Exceptions for "SimpleTodoWidget" folder in "SimpleTodoWidgetExtension" target */,
+			);
+			path = SimpleTodoWidget;
+			sourceTree = "<group>";
+		};
 		14C5101F2D905B2800CB231A /* TodoListMore */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				14C5106E2D9067CD00CB231A /* Exceptions for "TodoListMore" folder in "TodoListMore" target */,
+				141ACB482DA54BF200D89F25 /* Exceptions for "TodoListMore" folder in "SimpleTodoWidgetExtension" target */,
 			);
 			path = TodoListMore;
 			sourceTree = "<group>";
@@ -32,6 +89,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		14BB9B882DA1450400208176 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				14BB9B8D2DA1450400208176 /* SwiftUI.framework in Frameworks */,
+				14BB9B8C2DA1450400208176 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		14C5101A2D905B2800CB231A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -42,10 +108,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1443B5662DA13E9300E85D6D /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				1443B5672DA13E9300E85D6D /* WidgetKit.framework */,
+				1443B5692DA13E9300E85D6D /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		14C510142D905B2800CB231A = {
 			isa = PBXGroup;
 			children = (
+				141ACB462DA5490D00D89F25 /* SimpleTodoWidgetExtension.entitlements */,
 				14C5101F2D905B2800CB231A /* TodoListMore */,
+				14BB9B8E2DA1450400208176 /* SimpleTodoWidget */,
+				1443B5662DA13E9300E85D6D /* Frameworks */,
 				14C5101E2D905B2800CB231A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +132,7 @@
 			isa = PBXGroup;
 			children = (
 				14C5101D2D905B2800CB231A /* TodoListMore.app */,
+				14BB9B8B2DA1450400208176 /* SimpleTodoWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,6 +140,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		14BB9B8A2DA1450400208176 /* SimpleTodoWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 14BB9B9F2DA1450500208176 /* Build configuration list for PBXNativeTarget "SimpleTodoWidgetExtension" */;
+			buildPhases = (
+				14BB9B872DA1450400208176 /* Sources */,
+				14BB9B882DA1450400208176 /* Frameworks */,
+				14BB9B892DA1450400208176 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				14BB9B8E2DA1450400208176 /* SimpleTodoWidget */,
+			);
+			name = SimpleTodoWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = SimpleTodoWidgetExtension;
+			productReference = 14BB9B8B2DA1450400208176 /* SimpleTodoWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		14C5101C2D905B2800CB231A /* TodoListMore */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 14C5102B2D905B2900CB231A /* Build configuration list for PBXNativeTarget "TodoListMore" */;
@@ -68,10 +169,12 @@
 				14C510192D905B2800CB231A /* Sources */,
 				14C5101A2D905B2800CB231A /* Frameworks */,
 				14C5101B2D905B2800CB231A /* Resources */,
+				1443B57E2DA13E9400E85D6D /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				14BB9B9B2DA1450500208176 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				14C5101F2D905B2800CB231A /* TodoListMore */,
@@ -93,6 +196,9 @@
 				LastSwiftUpdateCheck = 1620;
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
+					14BB9B8A2DA1450400208176 = {
+						CreatedOnToolsVersion = 16.2;
+					};
 					14C5101C2D905B2800CB231A = {
 						CreatedOnToolsVersion = 16.2;
 					};
@@ -113,11 +219,19 @@
 			projectRoot = "";
 			targets = (
 				14C5101C2D905B2800CB231A /* TodoListMore */,
+				14BB9B8A2DA1450400208176 /* SimpleTodoWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		14BB9B892DA1450400208176 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		14C5101B2D905B2800CB231A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -128,6 +242,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		14BB9B872DA1450400208176 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		14C510192D905B2800CB231A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -137,7 +258,83 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		14BB9B9B2DA1450500208176 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 14BB9B8A2DA1450400208176 /* SimpleTodoWidgetExtension */;
+			targetProxy = 14BB9B9A2DA1450500208176 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		14BB9B9D2DA1450500208176 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = SimpleTodoWidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ZYL7N24MV2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SimpleTodoWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SimpleTodoWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.harjot.TodoListApp.SimpleTodoWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		14BB9B9E2DA1450500208176 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = SimpleTodoWidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ZYL7N24MV2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SimpleTodoWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SimpleTodoWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.harjot.TodoListApp.SimpleTodoWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		14C510292D905B2900CB231A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -262,10 +459,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = TodoListMore/TodoListMore.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"TodoListMore/Preview Content\"";
-				DEVELOPMENT_TEAM = C9B8H45NFP;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = ZYL7N24MV2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TodoListMore/Info.plist;
@@ -279,8 +479,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.harjot.TodoListMore;
+				PRODUCT_BUNDLE_IDENTIFIER = com.harjot.TodoListApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Todo List App Pro";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -296,10 +498,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = TodoListMore/TodoListMore.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"TodoListMore/Preview Content\"";
-				DEVELOPMENT_TEAM = C9B8H45NFP;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = ZYL7N24MV2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TodoListMore/Info.plist;
@@ -313,8 +518,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.harjot.TodoListMore;
+				PRODUCT_BUNDLE_IDENTIFIER = com.harjot.TodoListApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Todo List App Pro";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -328,6 +535,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		14BB9B9F2DA1450500208176 /* Build configuration list for PBXNativeTarget "SimpleTodoWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				14BB9B9D2DA1450500208176 /* Debug */,
+				14BB9B9E2DA1450500208176 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		14C510182D905B2800CB231A /* Build configuration list for PBXProject "TodoListMore" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

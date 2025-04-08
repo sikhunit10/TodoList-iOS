@@ -29,7 +29,31 @@ class DataController: ObservableObject {
         container = NSPersistentContainer(name: "TodoListMore")
         
         // Configure for app group sharing (for widget access)
-        let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.yourcompany.TodoListMore")?.appendingPathComponent("TodoListMore.sqlite")
+        // Make sure this group ID matches exactly what's in your entitlements files
+        let groupID = "group.com.harjot.TodoListApp.SimpleTodoWidget"
+        
+        print("App - Using app group ID: \(groupID)")
+        let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID)
+        
+        if let containerURL = containerURL {
+            print("App - Found app group container")
+            let storeURL = containerURL.appendingPathComponent("TodoListMore.sqlite")
+            print("App - Will store CoreData in shared container")
+            
+            // Check what's in the container directory without logging paths
+            do {
+                let contentCount = try FileManager.default.contentsOfDirectory(at: containerURL, includingPropertiesForKeys: nil).count
+                print("App - Container has \(contentCount) items")
+            } catch {
+                print("App - Error checking container contents")
+            }
+        } else {
+            print("App - CRITICAL ERROR: Failed to get container URL for app group: \(groupID)")
+            print("App - Check your entitlements and provisioning profiles")
+        }
+        
+        // Get store URL in the shared container
+        let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID)?.appendingPathComponent("TodoListMore.sqlite")
         
         if let storeURL = storeURL {
             let storeDescription = NSPersistentStoreDescription(url: storeURL)
@@ -74,6 +98,28 @@ class DataController: ObservableObject {
                 
                 // After successful save, ensure all UI elements have the most current data
                 objectWillChange.send()
+                
+                // Debug: Log where CoreData is stored for widget troubleshooting
+                let groupID = "group.com.harjot.TodoListMore.SimpleTodoWidget"
+                if let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID)?.appendingPathComponent("TodoListMore.sqlite") {
+                    print("App - Saved data to shared container at: \(storeURL)")
+                    print("App - File exists: \(FileManager.default.fileExists(atPath: storeURL.path))")
+                    
+                    // Debug: Count today's tasks
+                    let calendar = Calendar.current
+                    let startOfDay = calendar.startOfDay(for: Date())
+                    let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+                    
+                    let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "Task")
+                    fetchRequest.predicate = NSPredicate(format: "dueDate >= %@ AND dueDate < %@ AND isCompleted == NO", startOfDay as NSDate, startOfTomorrow as NSDate)
+                    
+                    do {
+                        let tasksCount = try container.viewContext.count(for: fetchRequest)
+                        print("App - Number of today's tasks: \(tasksCount)")
+                    } catch {
+                        print("App - Error counting today's tasks: \(error)")
+                    }
+                }
                 
                 // Only refresh changed objects, not all objects
                 // This is more efficient than refreshAllObjects()

@@ -67,12 +67,13 @@ struct TodoListMoreApp: App {
     @StateObject private var dataController = DataController.shared
     
     // For handling widget deep links
+    @StateObject private var deepLinkManager = DeepLinkManager()
     @State private var tabSelection = 0
     @State private var showNewTaskSheet = false
     
     init() {
-        // Since we can't effectively change the appearance of SearchBar across different views,
-        // we'll leave it at the default values and let SwiftUI handle it naturally
+        // Register the URL scheme for deep linking from widgets
+        print("Registering URL types for deep linking")
     }
     
     var body: some Scene {
@@ -83,6 +84,7 @@ struct TodoListMoreApp: App {
             )
             .environment(\.managedObjectContext, dataController.container.viewContext)
             .environmentObject(dataController)
+            .environmentObject(deepLinkManager)
             .onAppear {
                 // Handle any pending notifications when the app starts
                 UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
@@ -91,8 +93,24 @@ struct TodoListMoreApp: App {
                     }
                 }
             }
-            // Enable handling deep links from widgets
-            .handleDeepLink(selection: $tabSelection, showNewTaskSheet: $showNewTaskSheet)
+            .onOpenURL { url in
+                // Handle deep links from widgets
+                print("Received deep link: \(url)")
+                deepLinkManager.handle(url: url)
+                
+                // Process the deep link and update UI accordingly
+                if let deepLink = DeepLink(url: url) {
+                    switch deepLink {
+                    case .today:
+                        tabSelection = 0 // Tasks tab
+                    case .priority:
+                        tabSelection = 0 // Tasks tab
+                    case .newTask:
+                        tabSelection = 0 // Tasks tab
+                        showNewTaskSheet = true
+                    }
+                }
+            }
         }
     }
 }

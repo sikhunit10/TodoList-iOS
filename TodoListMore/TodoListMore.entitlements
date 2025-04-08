@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.yourcompany.TodoListMore</string>
+		<string>group.com.harjot.TodoListApp.SimpleTodoWidget</string>
 	</array>
 </dict>
 </plist>
