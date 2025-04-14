@@ -155,12 +155,22 @@ struct TaskFormView: View {
                             VStack(spacing: 12) {
                                 // Simple clean layout
                                 HStack(alignment: .center, spacing: 12) {
-                                    // Date picker with border
+                                    // Date picker with border and improved handling
                                     DatePicker("", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
                                         .datePickerStyle(.compact)
                                         .labelsHidden()
                                         .onChange(of: dueDate) { newDate in
+                                            // Store the previous date for comparison
+                                            let oldDate = previousDate
                                             previousDate = newDate
+                                            
+                                            // If changing to a date in the past, warn user
+                                            if newDate < Date() && oldDate >= Date() {
+                                                print("Warning: Setting due date to a time in the past")
+                                            }
+                                            
+                                            // Update reminder settings if needed
+                                            updateReminderSettingsForNewDate()
                                         }
                                         .padding(10)
                                         .background(
@@ -433,6 +443,23 @@ struct TaskFormView: View {
                                                 
                                                 Slider(value: $customReminderMinutes, in: 5...720, step: 5)
                                                     .accentColor(.accentColor)
+                                                    .onChange(of: customReminderMinutes) { newValue in
+                                                        // Ensure the reminder time is not in the past
+                                                        if reminderType == 5 {
+                                                            let reminderTime = dueDate.addingTimeInterval(-(newValue * 60))
+                                                            if reminderTime < Date() && dueDate > Date() {
+                                                                // Calculate maximum safe value
+                                                                let maxMinutes = max(5, (dueDate.timeIntervalSince(Date()) / 60) - 1)
+                                                                
+                                                                // If current setting exceeds maximum, adjust it
+                                                                if newValue > maxMinutes {
+                                                                    DispatchQueue.main.async {
+                                                                        customReminderMinutes = maxMinutes
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
                                             }
                                             
                                             Text("Reminder will be sent \(Int(customReminderMinutes) >= 60 ? "\(Int(customReminderMinutes) / 60) hour\(Int(customReminderMinutes) / 60 > 1 ? "s" : "")\(Int(customReminderMinutes) % 60 > 0 ? " \(Int(customReminderMinutes) % 60) minutes" : "")" : "\(Int(customReminderMinutes)) minutes") before the task is due")
@@ -622,6 +649,36 @@ struct TaskFormView: View {
         }
         
         return success
+    }
+    
+    // Helper method to update reminder settings when date changes
+    private func updateReminderSettingsForNewDate() {
+        // If the due date is in the past and reminders are set, warn the user
+        if dueDate < Date() && reminderType != 0 {
+            // Reminder for past date doesn't make sense - provide feedback
+            print("Warning: Setting reminder for a date in the past")
+            
+            // Optionally could reset the reminder type to None here
+            // reminderType = 0
+        }
+        
+        // If using a custom reminder time, validate against the new date
+        if reminderType == 5 && customReminderMinutes > 0 {
+            // Calculate reminder time based on custom minutes
+            let reminderTime = dueDate.addingTimeInterval(-(customReminderMinutes * 60))
+            
+            // If reminder time is in the past, adjust customReminderMinutes to a sensible value
+            if reminderTime < Date() && dueDate > Date() {
+                // Calculate maximum safe value (time between now and due date in minutes)
+                let maxMinutes = max(5, (dueDate.timeIntervalSince(Date()) / 60) - 1)
+                
+                // If current setting exceeds maximum, adjust it
+                if customReminderMinutes > maxMinutes {
+                    customReminderMinutes = maxMinutes
+                    print("Adjusted reminder time to \(Int(maxMinutes)) minutes before due date")
+                }
+            }
+        }
     }
     
     // Helper computed property to determine if we're in add mode
