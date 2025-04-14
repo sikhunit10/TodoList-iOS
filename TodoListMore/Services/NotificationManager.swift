@@ -16,9 +16,13 @@ class NotificationManager {
         // Private initializer to ensure singleton pattern
     }
     
-    // Request notification permissions
+    // Request notification permissions with improved memory management
     func requestAuthorization(completion: @escaping (Bool) -> Void) {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+        // Avoid capturing self, since the notification center doesn't
+        // need a reference to this class for the callback
+        let notificationCenter = UNUserNotificationCenter.current()
+        notificationCenter.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            // Always dispatch to main thread for UI updates
             DispatchQueue.main.async {
                 completion(granted)
             }
@@ -87,10 +91,19 @@ class NotificationManager {
                 }
             }
             
-            // Only schedule if notification time is in the future
+            // Check if notification time is in the past
             guard notificationTime > Date() else {
-                print("Not scheduling reminder: time is in the past")
-                return
+                print("Reminder time is in the past: \(notificationTime)")
+                
+                // If the due date is still in the future, schedule an immediate reminder
+                if dueDate > Date() {
+                    print("Setting immediate reminder for upcoming task")
+                    // Set notification time to 30 seconds from now as a fallback
+                    notificationTime = Date().addingTimeInterval(30)
+                } else {
+                    print("Not scheduling reminder: time is in the past")
+                    return
+                }
             }
             
             // Format due date for notification
