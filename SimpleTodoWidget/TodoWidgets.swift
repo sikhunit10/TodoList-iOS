@@ -82,29 +82,40 @@ class WidgetCoreDataStore {
             self.failedToLoadStore = true
         }
         
-        // Attempt to load the store
+        // Attempt to load the store with improved concurrency handling
         let group = DispatchGroup()
         group.enter()
         
+        // Capture container reference locally to avoid capturing self
+        let storeContainer = container
+        
+        // Weak reference to self to break retain cycle
         container.loadPersistentStores { [weak self] (_, error) in
+            defer {
+                group.leave() // Ensure we always leave the group
+            }
+            
+            guard let self = self else { return }
+            
             if let error = error {
                 print("Widget - Failed to load stores: \(error.localizedDescription)")
-                self?.failedToLoadStore = true
+                self.failedToLoadStore = true
             } else {
                 print("Widget - Successfully loaded persistent store")
                 // Store loaded successfully, update flag
-                self?.failedToLoadStore = false
+                self.failedToLoadStore = false
                 // Update view context
-                self?.viewContext = container.viewContext
+                self.viewContext = storeContainer.viewContext
             }
-            group.leave()
         }
         
-        // Wait for store loading to complete (with timeout)
-        let result = group.wait(timeout: .now() + 2.0)
+        // Wait for store loading to complete (with flexible timeout)
+        let result = group.wait(timeout: .now() + 3.0) // Increased timeout for reliability
         if result == .timedOut {
             print("Widget - Timed out waiting for store to load")
             self.failedToLoadStore = true
+            // Attempt to recover
+            self.viewContext.reset()
         }
     }
 }
@@ -157,30 +168,43 @@ struct TodoWidgetProvider: TimelineProvider {
             print("Widget - Today's tasks: \(entry.todayTasks.map { $0.title })")
         }
         
-        // Set very short update interval (10 seconds) for frequent refreshes
-        let nextUpdateDate = Calendar.current.date(byAdding: .second, value: 10, to: currentDate) ?? currentDate
+        // Set a reasonable update interval to balance freshness and battery usage
+        // Use 15 minutes for regular updates, or next hour boundary for overnight
+        var nextUpdateDate: Date
+        
+        if Calendar.current.isDateInToday(currentDate) {
+            // During the day, update every 15 minutes
+            nextUpdateDate = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate) ?? currentDate
+        } else {
+            // Overnight, update at the next hour boundary
+            let components = DateComponents(minute: 0, second: 0)
+            nextUpdateDate = Calendar.current.nextDate(after: currentDate, matching: components, matchingPolicy: .nextTime) ?? currentDate
+        }
         
         let timeline = Timeline(entries: [entry], policy: .after(nextUpdateDate))
         completion(timeline)
     }
     
-    // Helper to get data for the widget
+    // Helper to get data for the widget with improved memory management
     private func getWidgetEntry() -> TodoWidgetEntry {
-        // Clear any caches to ensure we're getting fresh data
-        viewContext.reset()
-        
-        // Get today's tasks
-        let todayTasks = fetchTodayTasks()
-        
-        // Get priority tasks
-        let priorityTasks = fetchPriorityTasks()
-        
-        return TodoWidgetEntry(
-            date: Date(), 
-            todayTasks: todayTasks, 
-            priorityTasks: priorityTasks,
-            refreshToken: UUID()  // Generate new token for each refresh
-        )
+        // Use autoreleasepool to prevent memory leaks during widget updates
+        return autoreleasepool { () -> TodoWidgetEntry in
+            // Clear any caches to ensure we're getting fresh data
+            viewContext.reset()
+            
+            // Get today's tasks
+            let todayTasks = fetchTodayTasks()
+            
+            // Get priority tasks
+            let priorityTasks = fetchPriorityTasks()
+            
+            return TodoWidgetEntry(
+                date: Date(), 
+                todayTasks: todayTasks, 
+                priorityTasks: priorityTasks,
+                refreshToken: UUID()  // Generate new token for each refresh
+            )
+        }
     }
     
     // Return a single placeholder task for error cases rather than empty array
