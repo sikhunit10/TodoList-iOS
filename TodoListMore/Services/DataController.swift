@@ -56,10 +56,9 @@ class DataController: ObservableObject {
             print("App - Check your entitlements and provisioning profiles")
         }
         
-        // Get store URL in the shared container
-        let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID)?.appendingPathComponent("TodoListMore.sqlite")
-        
-        if let storeURL = storeURL {
+        // Configure store URL in the shared container
+        if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID) {
+            let storeURL = containerURL.appendingPathComponent("TodoListMore.sqlite")
             let storeDescription = NSPersistentStoreDescription(url: storeURL)
             container.persistentStoreDescriptions = [storeDescription]
         }
@@ -68,6 +67,22 @@ class DataController: ObservableObject {
         container.loadPersistentStores { description, error in
             if let error = error {
                 print("CoreData failed to load: \(error.localizedDescription)")
+                
+                // Recovery attempt
+                let storeURL = description.url
+                print("Attempting recovery for store at: \(String(describing: storeURL))")
+                
+                // Try to recover by removing failed store
+                if let storeURL = storeURL,
+                   let storeCoordinator = self.container.persistentStoreCoordinator as? NSPersistentStoreCoordinator {
+                    do {
+                        // Try to remove the problematic store
+                        try storeCoordinator.destroyPersistentStore(at: storeURL, ofType: NSSQLiteStoreType, options: nil)
+                        print("Successfully destroyed corrupted store, will create new one on next app launch")
+                    } catch {
+                        print("Failed to destroy corrupted store: \(error.localizedDescription)")
+                    }
+                }
             } else {
                 // Check if reminder attributes exist in the model
                 let migrationHelper = CoreDataMigration.shared
@@ -96,12 +111,35 @@ class DataController: ObservableObject {
     
     // Save context if changes exist
     func save(notificationName: Notification.Name = .dataDidChange, userInfo: [AnyHashable: Any]? = nil) {
+        // Check if we're on the main thread
+        let isMainThread = Thread.isMainThread
+        
         if container.viewContext.hasChanges {
             do {
-                try container.viewContext.save()
+                // Perform save on the appropriate thread
+                if isMainThread {
+                    // We're already on the main thread
+                    try container.viewContext.save()
+                } else {
+                    // Dispatch to main thread for viewContext operations
+                    DispatchQueue.main.sync {
+                        do {
+                            try container.viewContext.save()
+                        } catch {
+                            print("Error saving context on main thread: \(error.localizedDescription)")
+                        }
+                    }
+                }
                 
                 // After successful save, ensure all UI elements have the most current data
-                objectWillChange.send()
+                // Dispatch UI updates to main thread
+                if isMainThread {
+                    objectWillChange.send()
+                } else {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.objectWillChange.send()
+                    }
+                }
                 
                 // Debug: Log where CoreData is stored for widget troubleshooting
                 let groupID = "group.com.harjot.TodoListApp.SimpleTodoWidget"
@@ -118,28 +156,42 @@ class DataController: ObservableObject {
                     fetchRequest.predicate = NSPredicate(format: "dueDate >= %@ AND dueDate < %@ AND isCompleted == NO", startOfDay as NSDate, startOfTomorrow as NSDate)
                     
                     do {
-                        let tasksCount = try container.viewContext.count(for: fetchRequest)
+                        let context = isMainThread ? container.viewContext : container.newBackgroundContext()
+                        let tasksCount = try context.count(for: fetchRequest)
                         print("App - Number of today's tasks: \(tasksCount)")
                     } catch {
                         print("App - Error counting today's tasks: \(error)")
                     }
                 }
                 
-                // Only refresh changed objects, not all objects
-                // This is more efficient than refreshAllObjects()
-                
                 // Post a notification that data has changed with userInfo if provided
-                NotificationCenter.default.post(name: notificationName, object: nil, userInfo: userInfo)
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: notificationName, object: nil, userInfo: userInfo)
+                }
                 
                 // Refresh widget data immediately
-                WidgetCenter.shared.reloadAllTimelines()
-                print("App - Refreshing widget timelines after data change")
+                DispatchQueue.main.async {
+                    WidgetCenter.shared.reloadAllTimelines()
+                    print("App - Refreshing widget timelines after data change")
+                }
                 
             } catch {
                 print("Error saving context: \(error.localizedDescription)")
                 print("Failed to save data: \(error.localizedDescription)")
+                
+                // Recovery attempt for database issues
+                DispatchQueue.global(qos: .utility).async { [weak self] in
+                    self?.attemptRecovery()
+                }
             }
         }
+    }
+    
+    // Helper method to attempt recovery of corrupted database
+    private func attemptRecovery() {
+        print("Attempting CoreData recovery...")
+        // Reset the view context to clear any failed transactions
+        container.viewContext.reset()
     }
     
     // Delete objects
@@ -182,16 +234,21 @@ class DataController: ObservableObject {
         
         // If we have a category ID, find that category and associate it
         if let categoryId = categoryId {
-            let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "Category")
-            fetchRequest.predicate = NSPredicate(format: "id == %@", categoryId as CVarArg)
-            
-            do {
-                let categories = try context.fetch(fetchRequest)
-                if let category = categories.first {
-                    task.setValue(category, forKey: "category")
+            // Use a transaction to ensure category fetch is atomic
+            context.performAndWait {
+                let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "Category")
+                fetchRequest.predicate = NSPredicate(format: "id == %@", categoryId as CVarArg)
+                
+                do {
+                    let categories = try context.fetch(fetchRequest)
+                    if let category = categories.first {
+                        task.setValue(category, forKey: "category")
+                    } else {
+                        print("Category with ID \(categoryId) not found")
+                    }
+                } catch {
+                    print("Error fetching category: \(error.localizedDescription)")
                 }
-            } catch {
-                print("Error fetching category: \(error.localizedDescription)")
             }
         }
         
@@ -365,13 +422,18 @@ class DataController: ObservableObject {
     func updateCategory(id: UUID, name: String? = nil, colorHex: String? = nil) -> Bool {
         var success = false
         
-        // Use our shared background context
-        categoryContext.performAndWait {
+        // Capture UUID value for async use, avoiding the need to capture self
+        let categoryId = id
+        
+        // Use our shared background context - use perform instead of performAndWait to avoid blocking
+        categoryContext.perform { [weak self] in
+            guard let self = self else { return }
+            
             let fetchRequest = NSFetchRequest<Category>(entityName: "Category")
-            fetchRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+            fetchRequest.predicate = NSPredicate(format: "id == %@", categoryId as CVarArg)
             
             do {
-                let categories = try categoryContext.fetch(fetchRequest)
+                let categories = try self.categoryContext.fetch(fetchRequest)
                 guard let category = categories.first else { 
                     return
                 }
@@ -386,33 +448,63 @@ class DataController: ObservableObject {
                 }
                 
                 // Save in background context
-                try categoryContext.save()
+                try self.categoryContext.save()
                 success = true
+                
+                // Since we're in a background queue, dispatch UI updates to main thread
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    
+                    // Notify that the data model has changed
+                    self.objectWillChange.send()
+                    
+                    // Send targeted notification instead of refreshing all objects
+                    NotificationCenter.default.post(
+                        name: .categoriesDidChange, 
+                        object: nil, 
+                        userInfo: ["categoryId": categoryId]
+                    )
+                    
+                    // Refresh widgets after category changes
+                    WidgetCenter.shared.reloadAllTimelines()
+                }
                 
             } catch {
                 print("Error updating category: \(error.localizedDescription)")
+                // Update the success flag on the main thread
+                DispatchQueue.main.async {
+                    success = false
+                }
             }
         }
         
-        guard success else { return false }
+        // Wait for the background operation to complete with a timeout
+        let timeout: TimeInterval = 2.0
+        let waitStart = Date()
         
-        // Send notifications to update the UI only once
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
-            // Notify that the data model has changed
-            self.objectWillChange.send()
-            
-            // Send targeted notification instead of refreshing all objects
-            NotificationCenter.default.post(
-                name: .categoriesDidChange, 
-                object: nil, 
-                userInfo: ["categoryId": id]
-            )
-            
-            // Refresh widgets after category changes
-            WidgetCenter.shared.reloadAllTimelines()
+        // Use a semaphore to wait for the background task to complete
+        // This approach is better than performAndWait which can lead to deadlocks
+        let semaphore = DispatchSemaphore(value: 0)
+        
+        // Set up a timer to release the semaphore after timeout
+        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + timeout) {
+            semaphore.signal()
         }
+        
+        // Let background task signal the semaphore when done
+        DispatchQueue.global(qos: .background).async {
+            // Check every 0.1 seconds if success is true
+            while !success && Date().timeIntervalSince(waitStart) < timeout {
+                if success {
+                    semaphore.signal()
+                    break
+                }
+                Thread.sleep(forTimeInterval: 0.1)
+            }
+        }
+        
+        // Wait for either success or timeout
+        _ = semaphore.wait(timeout: .now() + timeout)
         
         return success
     }
@@ -435,9 +527,24 @@ class DataController: ObservableObject {
                 let result = try bgContext.execute(batchDeleteRequest) as? NSBatchDeleteResult
                 let objectIDs = result?.result as? [NSManagedObjectID] ?? []
                 
-                // Merge changes into both contexts
-                let changes = [NSDeletedObjectsKey: objectIDs]
-                NSManagedObjectContext.mergeChanges(fromRemoteContextSave: changes, into: [container.viewContext, bgContext])
+                // Create a barrier to ensure proper synchronization across contexts
+                let barrier = DispatchGroup()
+                barrier.enter()
+                
+                // Merge changes into main context on the main thread
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else {
+                        barrier.leave()
+                        return
+                    }
+                    
+                    let changes = [NSDeletedObjectsKey: objectIDs]
+                    NSManagedObjectContext.mergeChanges(fromRemoteContextSave: changes, into: [self.container.viewContext])
+                    barrier.leave()
+                }
+                
+                // Wait for main context update to complete (with timeout)
+                _ = barrier.wait(timeout: .now() + 1.0)
                 
                 deletedCount = objectIDs.count
                 
