@@ -112,13 +112,18 @@ struct TaskListView: View {
                 initialLoadComplete = true
             }
             
-            if highlightedTaskId != nil {
-                showTaskForHighlighting()
+            if let taskId = highlightedTaskId {
+                print("Initial highlight ID detected: \(taskId)")
+                // Delay the highlight to ensure view is fully loaded
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showTaskForHighlighting()
+                }
             }
         }
         .onChange(of: completedTasksVisible) { _ in updateFetchRequest() }
         .onChange(of: highlightedTaskId) { _ in 
-            if highlightedTaskId != nil {
+            if let taskId = highlightedTaskId {
+                print("New highlighted task ID detected: \(taskId)")
                 showTaskForHighlighting()
             }
         }
@@ -396,8 +401,29 @@ struct TaskListView: View {
             let taskExists = self.tasks.contains { $0.id == taskId }
             print("Task exists in list: \(taskExists)")
             
+            if !taskExists {
+                print("Task with ID \(taskId) not found in the list. Checking if it exists in CoreData.")
+                // Check if the task exists in CoreData
+                let fetchRequest: NSFetchRequest<Task> = Task.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "id == %@", taskId as CVarArg)
+                
+                do {
+                    let taskCount = try self.viewContext.count(for: fetchRequest)
+                    print("CoreData task with ID \(taskId) exists: \(taskCount > 0)")
+                    
+                    // If task exists but isn't in our filtered list, we need to update our filter
+                    if taskCount > 0 {
+                        // Force re-fetch
+                        self.tasks.nsPredicate = nil
+                        self.updateFetchRequest()
+                    }
+                } catch {
+                    print("Error checking for task: \(error.localizedDescription)")
+                }
+            }
+            
             // Start highlighting with a slight delay to ensure UI has updated
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 withAnimation(.easeInOut(duration: 0.5)) {
                     self.animateHighlight = true
                     print("Animation highlight turned ON")
