@@ -4,11 +4,13 @@ A feature-rich task management application built with SwiftUI and CoreData for i
 
 ## Screenshots
 
-![App Screenshot 1](https://i.ibb.co/svf5WGRm/1.png)
-![App Screenshot 2](https://i.ibb.co/b5LgHWzn/2.png)
-![App Screenshot 3](https://i.ibb.co/XBdnYg5/3.png)
-![App Screenshot 4](https://i.ibb.co/zV8z38kc/4.png)
-![App Screenshot 5](https://i.ibb.co/fddL57XH/5.png)
+<p align="center">
+  <img src="https://i.ibb.co/svf5WGRm/1.png" width="150" alt="App Screenshot 1"/>
+  <img src="https://i.ibb.co/b5LgHWzn/2.png" width="150" alt="App Screenshot 2"/>
+  <img src="https://i.ibb.co/XBdnYg5/3.png" width="150" alt="App Screenshot 3"/>
+  <img src="https://i.ibb.co/zV8z38kc/4.png" width="150" alt="App Screenshot 4"/>
+  <img src="https://i.ibb.co/fddL57XH/5.png" width="150" alt="App Screenshot 5"/>
+</p>
 
 ## Download
 
