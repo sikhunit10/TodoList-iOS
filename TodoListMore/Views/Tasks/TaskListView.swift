@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreData
+import UIKit
 
 struct TaskListView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -18,6 +19,7 @@ struct TaskListView: View {
     @State private var selectedTaskId: String? = nil
     @State private var animateHighlight = false
     @State private var initialLoadComplete = false
+    @State private var wasInBackground = false
     @AppStorage("completedTasksVisible") private var completedTasksVisible = true
     
     // Task to highlight (from notification) - now using a binding to get live updates
@@ -149,6 +151,23 @@ struct TaskListView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .dataDidChange)) { _ in
             DispatchQueue.main.async { updateFetchRequest() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+            // App is going to background
+            wasInBackground = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            // App returned to foreground
+            if wasInBackground {
+                // Preserve current filter but force refresh
+                let currentFilter = selectedFilter
+                DispatchQueue.main.async {
+                    // Re-apply the filter to ensure consistency
+                    selectedFilter = currentFilter
+                    updateFetchRequest()
+                }
+                wasInBackground = false
+            }
         }
     }
     
