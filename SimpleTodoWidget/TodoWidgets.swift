@@ -240,10 +240,18 @@ struct TodoWidgetProvider: TimelineProvider {
             let allTasksCount = try viewContext.count(for: allTasksRequest)
             print("Widget - Total number of tasks in CoreData: \(allTasksCount)")
             
-            // If CoreData seems empty, return empty array
+            // If CoreData seems empty, display placeholder message
             if allTasksCount == 0 {
                 print("Widget - No tasks found in CoreData")
-                return getEmptyTasks()
+                return [
+                    TaskInfo(
+                        id: UUID(),
+                        title: "No tasks available",
+                        dueDate: Date(),
+                        priority: 0,
+                        isCompleted: false
+                    )
+                ]
             }
         } catch {
             print("Widget - Error accessing CoreData: \(error)")
@@ -308,9 +316,17 @@ struct TodoWidgetProvider: TimelineProvider {
             print("Widget - Priority task check: \(allTasksCount) total tasks found")
             
             if allTasksCount == 0 {
-                // If there are no tasks at all, return empty array
+                // If there are no tasks at all, return a placeholder
                 print("Widget - No tasks at all, no priority tasks to display")
-                return getEmptyTasks()
+                return [
+                    TaskInfo(
+                        id: UUID(),
+                        title: "No priority tasks",
+                        dueDate: Date(),
+                        priority: 0,
+                        isCompleted: false
+                    )
+                ]
             }
         } catch {
             print("Widget - Error in fetchPriorityTasks: \(error)")
@@ -591,7 +607,7 @@ struct TodayTasksWidget: Widget {
         }
         .configurationDisplayName("Today's Tasks")
         .description("Shows tasks due today")
-        .supportedFamilies([.systemSmall])
+        .supportedFamilies([.systemSmall, .systemMedium])
         .contentMarginsDisabled()
     }
 }
@@ -606,7 +622,7 @@ struct PriorityTasksWidget: Widget {
         }
         .configurationDisplayName("Priority Tasks")
         .description("Shows high priority tasks")
-        .supportedFamilies([.systemSmall])
+        .supportedFamilies([.systemSmall, .systemMedium])
         .contentMarginsDisabled()
     }
 }
@@ -621,7 +637,7 @@ struct QuickAddTaskWidget: Widget {
         }
         .configurationDisplayName("Quick Add Task")
         .description("Quickly add a new task")
-        .supportedFamilies([.systemSmall])
+        .supportedFamilies([.systemSmall, .systemMedium])
         .contentMarginsDisabled()
     }
 }
@@ -642,20 +658,7 @@ struct QuickAddTaskWidget: Widget {
     )
 }
 
-// Medium size no longer supported
-// #Preview("Today Tasks (Medium)", as: .systemMedium) {
-//     TodayTasksWidget()
-// } timeline: {
-//     TodoWidgetEntry(
-//         date: .now,
-//         todayTasks: [
-//             TaskInfo(id: UUID(), title: "Complete project", dueDate: Date().addingTimeInterval(3600), priority: 2, isCompleted: false),
-//             TaskInfo(id: UUID(), title: "Call client", dueDate: Date().addingTimeInterval(7200), priority: 3, isCompleted: false),
-//             TaskInfo(id: UUID(), title: "Prepare presentation", dueDate: Date().addingTimeInterval(10800), priority: 2, isCompleted: false)
-//         ],
-//         priorityTasks: []
-//     )
-// }
+// Medium sized preview removed
 
 #Preview("Priority Tasks", as: .systemSmall) {
     PriorityTasksWidget()
@@ -671,8 +674,12 @@ struct QuickAddTaskWidget: Widget {
     )
 }
 
+// Medium sized preview removed
+
 #Preview("Quick Add", as: .systemSmall) {
     QuickAddTaskWidget()
 } timeline: {
     TodoWidgetEntry(date: .now, todayTasks: [], priorityTasks: [], refreshToken: UUID())
 }
+
+// Medium sized preview removed
