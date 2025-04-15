@@ -47,6 +47,14 @@ enum TaskPriority: Int16, CaseIterable, Identifiable {
         case .high: return AppTheme.taskPriorityHigh
         }
     }
+    
+    // Create from Int value safely
+    static func fromInt(_ value: Int) -> TaskPriority {
+        guard let priority = TaskPriority(rawValue: Int16(value)) else {
+            return .medium // Default to medium if invalid
+        }
+        return priority
+    }
 }
 
 /// Filter options for the task list
