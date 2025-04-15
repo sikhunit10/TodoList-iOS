@@ -5,13 +5,10 @@ A feature-rich task management application built with SwiftUI and CoreData for i
 ## Screenshots
 
 <div align="center">
-  <a href="https://imgur.com/a/Lat54mX">
-    <img src="https://i.imgur.com/zKrQ7YB.png" width="200" alt="App Screenshot 1"/>
-  </a>
-</div>
-
-<div align="center">
-  <a href="https://imgur.com/a/Lat54mX">View All Screenshots on Imgur</a>
+  <img src="https://i.imgur.com/jzvbwt7.png" width="200" alt="App Screenshot 1"/>
+  <img src="https://i.imgur.com/zAGd8B0.png" width="200" alt="App Screenshot 2"/>
+  <img src="https://i.imgur.com/e2ueY4A.png" width="200" alt="App Screenshot 3"/>
+  <img src="https://i.imgur.com/fDKA2RQ.png" width="200" alt="App Screenshot 4"/>
 </div>
 
 ## Download
