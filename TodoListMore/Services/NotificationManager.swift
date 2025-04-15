@@ -92,7 +92,7 @@ class NotificationManager {
             }
             
             // Check if notification time is in the past
-            guard notificationTime > Date() else {
+            if notificationTime <= Date() {
                 print("Reminder time is in the past: \(notificationTime)")
                 
                 // If the due date is still in the future, schedule an immediate reminder
@@ -104,7 +104,6 @@ class NotificationManager {
                     print("Not scheduling reminder: time is in the past")
                     return
                 }
-                return
             }
             
             // Format due date for notification
