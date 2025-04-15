@@ -2,6 +2,23 @@
 
 A feature-rich task management application built with SwiftUI and CoreData for iOS/iPadOS. TaskFlow helps you organize tasks with categories, priorities, and due dates in a clean, intuitive interface.
 
+## Screenshots
+
+<div align="center">
+  <img src="https://i.imgur.com/0dRfJJC.png" width="200" alt="App Screenshot 1"/>
+  <img src="https://i.imgur.com/8p7B3gK.png" width="200" alt="App Screenshot 2"/>
+  <img src="https://i.imgur.com/T6z6Iy5.png" width="200" alt="App Screenshot 3"/>
+  <img src="https://i.imgur.com/ffqaC9F.png" width="200" alt="App Screenshot 4"/>
+</div>
+
+<div align="center">
+  <a href="https://imgur.com/a/Lat54mX">View All Screenshots on Imgur</a>
+</div>
+
+## Download
+
+Get it on the App Store: [TodoListMore](https://apps.apple.com/in/app/todolistmore/id6744360427)
+
 ## Features
 
 - Create, view, edit, and delete tasks with titles and descriptions
