@@ -104,6 +104,7 @@ class NotificationManager {
                     print("Not scheduling reminder: time is in the past")
                     return
                 }
+                return
             }
             
             // Format due date for notification
