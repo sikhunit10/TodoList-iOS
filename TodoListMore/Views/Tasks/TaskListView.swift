@@ -159,12 +159,15 @@ struct TaskListView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             // App returned to foreground
             if wasInBackground {
-                // Preserve current filter but force refresh
+                // Preserve current filter but force refresh with updated date ranges
                 let currentFilter = selectedFilter
                 DispatchQueue.main.async {
                     // Re-apply the filter to ensure consistency
                     selectedFilter = currentFilter
-                    updateFetchRequest()
+                    // Clear contexts to ensure they use fresh data
+                    viewContext.refreshAllObjects()
+                    // For date-based filters, always recalculate the date predicates
+                    updateFetchRequest(forceRefreshDates: true)
                 }
                 wasInBackground = false
             }
@@ -183,7 +186,8 @@ struct TaskListView: View {
                     .padding(.bottom, 0)
                     .background(Color.white)
                     .onChange(of: selectedFilter) { _ in
-                        updateFetchRequest()
+                        // Always use fresh date values when changing filters
+                        updateFetchRequest(forceRefreshDates: true)
                     }
             } else {
                 // Edit mode header
@@ -411,10 +415,12 @@ struct TaskListView: View {
             // Reset filter and search to ensure task is visible
             self.selectedFilter = .all
             self.searchText = ""
-            self.updateFetchRequest()
             
             // Force refresh the view context to ensure we have latest data
             self.viewContext.refreshAllObjects()
+            
+            // Force update with refreshed date values
+            self.updateFetchRequest(forceRefreshDates: true)
             
             // Ensure we have the task in our list
             let taskExists = self.tasks.contains { $0.id == taskId }
@@ -434,7 +440,7 @@ struct TaskListView: View {
                     if taskCount > 0 {
                         // Force re-fetch
                         self.tasks.nsPredicate = nil
-                        self.updateFetchRequest()
+                        self.updateFetchRequest(forceRefreshDates: true)
                     }
                 } catch {
                     print("Error checking for task: \(error.localizedDescription)")
@@ -477,7 +483,7 @@ struct TaskListView: View {
     }
     
     // Update fetch request with current filters
-    private func updateFetchRequest() {
+    private func updateFetchRequest(forceRefreshDates: Bool = false) {
         var predicates: [NSPredicate] = []
         
         // Search filter
@@ -494,12 +500,14 @@ struct TaskListView: View {
         case .completed:
             predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: true)))
         case .today:
+            // Always get fresh date range to handle app returning from background
             let dateRange = DateUtils.getTodayDateRange()
             predicates.append(NSPredicate(format: "dueDate >= %@ AND dueDate < %@", 
                                          dateRange.startOfDay as NSDate, 
                                          dateRange.startOfTomorrow as NSDate))
             predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: false)))
         case .upcoming:
+            // Always get fresh start of day to handle app returning from background
             let calendar = Calendar.current
             let startOfDay = calendar.startOfDay(for: Date())
             predicates.append(NSPredicate(format: "dueDate > %@", startOfDay as NSDate))
@@ -511,7 +519,22 @@ struct TaskListView: View {
         
         // Apply predicates
         let predicate = predicates.isEmpty ? nil : NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
-        tasks.nsPredicate = predicate
+        
+        // If we're forcing a date refresh for time-sensitive filters, apply a slight delay
+        // to ensure the NSPredicate is properly refreshed with current date values
+        if forceRefreshDates && (selectedFilter == .today || selectedFilter == .upcoming) {
+            // First clear the predicate to force a reset
+            tasks.nsPredicate = nil
+            
+            // Small delay to ensure the UI can update
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                // Then apply the new predicate with fresh date values
+                self.tasks.nsPredicate = predicate
+            }
+        } else {
+            // Normal case - apply immediately
+            tasks.nsPredicate = predicate
+        }
     }
     
     // Delete a task
