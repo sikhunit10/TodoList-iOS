@@ -17,6 +17,7 @@ struct TaskListView: View {
     @State private var selectedFilter: TaskFilter = .all
     @State private var selectedTaskId: String? = nil
     @State private var animateHighlight = false
+    @State private var initialLoadComplete = false
     @AppStorage("completedTasksVisible") private var completedTasksVisible = true
     
     // Task to highlight (from notification) - now using a binding to get live updates
@@ -104,6 +105,13 @@ struct TaskListView: View {
         }
         .onAppear {
             updateFetchRequest()
+            
+            // Check for active tasks and select the Active tab by default on initial load
+            if !initialLoadComplete {
+                checkForActiveTasks()
+                initialLoadComplete = true
+            }
+            
             if highlightedTaskId != nil {
                 showTaskForHighlighting()
             }
@@ -481,6 +489,27 @@ struct TaskListView: View {
             if filteredTasks.isEmpty {
                 isEditMode = false
             }
+        }
+    }
+    
+    // Check if there are active tasks and switch to that tab if they exist
+    private func checkForActiveTasks() {
+        // Create a fetch request to check for active (incomplete) tasks
+        let fetchRequest: NSFetchRequest<Task> = Task.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "isCompleted == %@", NSNumber(value: false))
+        fetchRequest.fetchLimit = 1 // We only need to know if there are any
+        
+        do {
+            let activeTasks = try viewContext.fetch(fetchRequest)
+            // If there are active tasks, switch to the active tab
+            if !activeTasks.isEmpty {
+                withAnimation {
+                    selectedFilter = .active
+                    updateFetchRequest() // Update the fetch request to reflect the new filter
+                }
+            }
+        } catch {
+            print("Error checking for active tasks: \(error.localizedDescription)")
         }
     }
 }
