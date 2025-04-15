@@ -1,0 +1,6 @@
+// This configuration file sets up APS environment based on build configuration
+// Create a custom build configuration for handling APS environment
+// For development builds
+[config=Debug] APS_ENVIRONMENT = development
+// For release builds
+[config=Release] APS_ENVIRONMENT = production
