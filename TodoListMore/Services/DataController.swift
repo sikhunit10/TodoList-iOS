@@ -169,8 +169,8 @@ class DataController: ObservableObject {
                     NotificationCenter.default.post(name: notificationName, object: nil, userInfo: userInfo)
                 }
                 
-                // Refresh widget data immediately
-                DispatchQueue.main.async {
+                // Refresh widget data immediately, but with a slight delay to ensure CoreData writes have finished
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     WidgetCenter.shared.reloadAllTimelines()
                     print("App - Refreshing widget timelines after data change")
                 }
@@ -420,14 +420,18 @@ class DataController: ObservableObject {
     }()
     
     func updateCategory(id: UUID, name: String? = nil, colorHex: String? = nil) -> Bool {
-        var success = false
+        // Create a local completion indicator
+        let completion = CompletionIndicator()
         
         // Capture UUID value for async use, avoiding the need to capture self
         let categoryId = id
         
-        // Use our shared background context - use perform instead of performAndWait to avoid blocking
+        // Use our shared background context with performAndWait to ensure completion
         categoryContext.perform { [weak self] in
-            guard let self = self else { return }
+            guard let self = self else {
+                completion.fail()
+                return
+            }
             
             let fetchRequest = NSFetchRequest<Category>(entityName: "Category")
             fetchRequest.predicate = NSPredicate(format: "id == %@", categoryId as CVarArg)
@@ -435,6 +439,7 @@ class DataController: ObservableObject {
             do {
                 let categories = try self.categoryContext.fetch(fetchRequest)
                 guard let category = categories.first else { 
+                    completion.fail()
                     return
                 }
                 
@@ -449,7 +454,9 @@ class DataController: ObservableObject {
                 
                 // Save in background context
                 try self.categoryContext.save()
-                success = true
+                
+                // Signal success before UI updates
+                completion.succeed()
                 
                 // Since we're in a background queue, dispatch UI updates to main thread
                 DispatchQueue.main.async { [weak self] in
@@ -466,47 +473,61 @@ class DataController: ObservableObject {
                     )
                     
                     // Refresh widgets after category changes
-                    WidgetCenter.shared.reloadAllTimelines()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        WidgetCenter.shared.reloadAllTimelines()
+                    }
                 }
                 
             } catch {
                 print("Error updating category: \(error.localizedDescription)")
-                // Update the success flag on the main thread
-                DispatchQueue.main.async {
-                    success = false
-                }
+                completion.fail()
             }
         }
         
-        // Wait for the background operation to complete with a timeout
-        let timeout: TimeInterval = 2.0
-        let waitStart = Date()
+        // Wait for the operation to complete with a reasonable timeout
+        return completion.waitForCompletion(timeout: 3.0)
+    }
+    
+    // Helper class for thread-safe completion tracking
+    private class CompletionIndicator {
+        private var isCompleted = false
+        private var didSucceed = false
+        private let lock = NSLock()
         
-        // Use a semaphore to wait for the background task to complete
-        // This approach is better than performAndWait which can lead to deadlocks
-        let semaphore = DispatchSemaphore(value: 0)
-        
-        // Set up a timer to release the semaphore after timeout
-        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + timeout) {
-            semaphore.signal()
+        func succeed() {
+            lock.lock()
+            defer { lock.unlock() }
+            isCompleted = true
+            didSucceed = true
         }
         
-        // Let background task signal the semaphore when done
-        DispatchQueue.global(qos: .background).async {
-            // Check every 0.1 seconds if success is true
-            while !success && Date().timeIntervalSince(waitStart) < timeout {
-                if success {
-                    semaphore.signal()
-                    break
+        func fail() {
+            lock.lock()
+            defer { lock.unlock() }
+            isCompleted = true
+            didSucceed = false
+        }
+        
+        func waitForCompletion(timeout: TimeInterval) -> Bool {
+            let startTime = Date()
+            
+            while Date().timeIntervalSince(startTime) < timeout {
+                lock.lock()
+                let completed = isCompleted
+                let success = didSucceed
+                lock.unlock()
+                
+                if completed {
+                    return success
                 }
-                Thread.sleep(forTimeInterval: 0.1)
+                
+                // Sleep briefly to avoid high CPU usage
+                Thread.sleep(forTimeInterval: 0.05)
             }
+            
+            print("Warning: Timed out waiting for category update")
+            return false
         }
-        
-        // Wait for either success or timeout
-        _ = semaphore.wait(timeout: .now() + timeout)
-        
-        return success
     }
     
     // MARK: - Batch Operations
