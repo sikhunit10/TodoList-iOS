@@ -658,8 +658,9 @@ struct TaskFormView: View {
             // Reminder for past date doesn't make sense - provide feedback
             print("Warning: Setting reminder for a date in the past")
             
-            // Optionally could reset the reminder type to None here
-            // reminderType = 0
+            // Reset the reminder type to None if date is in the past
+            reminderType = 0
+            showCustomTimePicker = false
         }
         
         // If using a custom reminder time, validate against the new date
