@@ -10,6 +10,7 @@
 		14BB9B8C2DA1450400208176 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1443B5672DA13E9300E85D6D /* WidgetKit.framework */; };
 		14BB9B8D2DA1450400208176 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1443B5692DA13E9300E85D6D /* SwiftUI.framework */; };
 		14BB9B9C2DA1450500208176 /* SimpleTodoWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 14BB9B8B2DA1450400208176 /* SimpleTodoWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		14CD8E572DAF75720001D97E /* AmplitudeSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 14CD8E562DAF75720001D97E /* AmplitudeSwift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -102,6 +103,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				14CD8E572DAF75720001D97E /* AmplitudeSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -181,6 +183,7 @@
 			);
 			name = TodoListMore;
 			packageProductDependencies = (
+				14CD8E562DAF75720001D97E /* AmplitudeSwift */,
 			);
 			productName = TodoListMore;
 			productReference = 14C5101D2D905B2800CB231A /* TodoListMore.app */;
@@ -213,6 +216,9 @@
 			);
 			mainGroup = 14C510142D905B2800CB231A;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				14CD8E552DAF75720001D97E /* XCRemoteSwiftPackageReference "Amplitude-Swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 14C5101E2D905B2800CB231A /* Products */;
 			projectDirPath = "";
@@ -287,7 +293,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.harjot.TodoListApp.SimpleTodoWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -323,7 +329,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.harjot.TodoListApp.SimpleTodoWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -486,7 +492,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.harjot.TodoListApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -529,7 +535,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.harjot.TodoListApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -575,6 +581,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		14CD8E552DAF75720001D97E /* XCRemoteSwiftPackageReference "Amplitude-Swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/amplitude/Amplitude-Swift";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		14CD8E562DAF75720001D97E /* AmplitudeSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 14CD8E552DAF75720001D97E /* XCRemoteSwiftPackageReference "Amplitude-Swift" */;
+			productName = AmplitudeSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 14C510152D905B2800CB231A /* Project object */;
 }
