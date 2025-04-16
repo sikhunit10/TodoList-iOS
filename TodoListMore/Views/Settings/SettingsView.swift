@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreData
+import AmplitudeSwift
 
 struct SettingsView: View {
     @EnvironmentObject private var dataController: DataController
@@ -160,6 +161,10 @@ struct SettingsView: View {
             // Save changes
             dataController.save()
             
+            // Track data deletion
+            let appDelegate = UIApplication.shared.delegate as? AppDelegate
+            appDelegate?.amplitude.track(eventType: "delete_all_data")
+            
             // Show success message
             alertTitle = "Success"
             alertMessage = "All data has been successfully deleted."
@@ -174,6 +179,13 @@ struct SettingsView: View {
     private func deleteCompletedTasks() {
         // Use the batch delete function from DataController
         let deletedCount = dataController.deleteAllCompletedTasks()
+        
+        // Track completed tasks deletion
+        let appDelegate = UIApplication.shared.delegate as? AppDelegate
+        appDelegate?.amplitude.track(
+            eventType: "delete_completed_tasks",
+            eventProperties: ["count": deletedCount]
+        )
         
         if deletedCount == 0 {
             alertTitle = "Information"

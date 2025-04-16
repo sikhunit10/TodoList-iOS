@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import AmplitudeSwift
 
 struct ContentView: View {
     // Allow external control of tab selection for deep linking
@@ -105,6 +106,10 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            // Track screen view
+            let appDelegate = UIApplication.shared.delegate as? AppDelegate
+            appDelegate?.amplitude.track(eventType: "view_main_screen")
+            
             // Enhanced iOS system appearance
             let appearance = UITabBarAppearance()
             appearance.configureWithDefaultBackground()

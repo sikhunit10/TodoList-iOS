@@ -9,8 +9,14 @@ import SwiftUI
 import CoreData
 import UserNotifications
 import WidgetKit
+import AmplitudeSwift
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    let amplitude = Amplitude(configuration: Configuration(
+        apiKey: "1e017dc2ffb6ad549c641b7fb9e4cb2e",
+        trackingOptions: TrackingOptions()
+    ))
+    
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         
         // Set the notification delegate to self
@@ -20,6 +26,31 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         NotificationManager.shared.requestAuthorization { granted in
             print("Notification permissions granted: \(granted)")
         }
+        
+        // Initialize Amplitude
+        let isFirstLaunch = UserDefaults.standard.bool(forKey: "HasLaunchedBefore") == false
+        
+        if isFirstLaunch {
+            // This is a first launch/install
+            amplitude.track(eventType: "app_installed")
+            
+            // Mark that the app has been launched
+            UserDefaults.standard.set(true, forKey: "HasLaunchedBefore")
+            UserDefaults.standard.set(Date(), forKey: "InstallDate")
+        }
+        
+        // Track app_opened event with session data
+        let sessionId = UUID().uuidString
+        UserDefaults.standard.set(sessionId, forKey: "CurrentSessionId")
+        UserDefaults.standard.set(Date(), forKey: "SessionStartTime")
+        
+        amplitude.track(
+            eventType: "app_opened",
+            eventProperties: [
+                "session_id": sessionId,
+                "days_since_install": daysSinceInstall()
+            ]
+        )
         
         return true
     }
@@ -40,6 +71,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             // Here you could navigate to the task details
             print("User tapped notification for task: \(taskId)")
             
+            // Track notification interaction
+            amplitude.track(
+                eventType: "notification_tapped",
+                eventProperties: ["task_id": taskIdString]
+            )
+            
             // Post a notification to navigate to the task and highlight it
             // Do NOT open task detail sheet
             NotificationCenter.default.post(
@@ -50,6 +87,19 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
         
         completionHandler()
+    }
+    
+    // Helper to calculate days since app install
+    func daysSinceInstall() -> Int {
+        guard let installDate = UserDefaults.standard.object(forKey: "InstallDate") as? Date else {
+            // If no install date, set it now and return 0
+            UserDefaults.standard.set(Date(), forKey: "InstallDate")
+            return 0
+        }
+        
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.day], from: installDate, to: Date())
+        return components.day ?? 0
     }
 }
 
@@ -75,6 +125,71 @@ struct TodoListMoreApp: App {
     init() {
         // Register the URL scheme for deep linking from widgets
         print("Registering URL types for deep linking")
+        
+        // Register for app lifecycle notifications
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // Track session resume
+            let appDelegate = UIApplication.shared.delegate as? AppDelegate
+            let sessionId = UUID().uuidString
+            UserDefaults.standard.set(sessionId, forKey: "CurrentSessionId")
+            UserDefaults.standard.set(Date(), forKey: "SessionStartTime")
+            
+            appDelegate?.amplitude.track(
+                eventType: "app_became_active",
+                eventProperties: [
+                    "session_id": sessionId,
+                    "days_since_install": appDelegate?.daysSinceInstall() ?? 0
+                ]
+            )
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // Track session end and calculate duration
+            let appDelegate = UIApplication.shared.delegate as? AppDelegate
+            
+            let sessionId = UserDefaults.standard.string(forKey: "CurrentSessionId") ?? "unknown"
+            let sessionStartTime = UserDefaults.standard.object(forKey: "SessionStartTime") as? Date ?? Date()
+            let sessionDuration = Int(Date().timeIntervalSince(sessionStartTime))
+            
+            appDelegate?.amplitude.track(
+                eventType: "app_resigned_active",
+                eventProperties: [
+                    "session_id": sessionId,
+                    "session_duration_seconds": sessionDuration
+                ]
+            )
+        }
+        
+        // Register for app termination to track potential uninstalls
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // Save last session timestamp for uninstall detection
+            UserDefaults.standard.set(Date(), forKey: "LastSessionTime")
+            
+            // Track app termination
+            let sessionId = UserDefaults.standard.string(forKey: "CurrentSessionId") ?? "unknown"
+            let sessionStartTime = UserDefaults.standard.object(forKey: "SessionStartTime") as? Date ?? Date()
+            let sessionDuration = Int(Date().timeIntervalSince(sessionStartTime))
+            
+            (UIApplication.shared.delegate as? AppDelegate)?.amplitude.track(
+                eventType: "app_terminated",
+                eventProperties: [
+                    "session_id": sessionId,
+                    "session_duration_seconds": sessionDuration
+                ]
+            )
+        }
     }
     
     var body: some Scene {

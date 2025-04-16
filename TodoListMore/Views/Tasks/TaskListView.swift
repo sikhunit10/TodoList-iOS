@@ -8,6 +8,7 @@
 import SwiftUI
 import CoreData
 import UIKit
+import AmplitudeSwift
 
 struct TaskListView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -540,6 +541,17 @@ struct TaskListView: View {
     // Delete a task
     private func deleteTask(_ task: Task) {
         withAnimation {
+            // Track task deletion
+            let appDelegate = UIApplication.shared.delegate as? AppDelegate
+            appDelegate?.amplitude.track(
+                eventType: "task_deleted",
+                eventProperties: [
+                    "priority": task.priority,
+                    "is_completed": task.isCompleted,
+                    "has_category": task.category != nil
+                ]
+            )
+            
             dataController.delete(task)
         }
     }
@@ -547,9 +559,17 @@ struct TaskListView: View {
     // Delete selected tasks
     private func deleteSelectedTasks() {
         withAnimation {
+            // Track bulk deletion
+            let appDelegate = UIApplication.shared.delegate as? AppDelegate
+            appDelegate?.amplitude.track(
+                eventType: "tasks_bulk_deleted",
+                eventProperties: ["count": selectedTaskIds.count]
+            )
+            
             for taskId in selectedTaskIds {
                 if let taskToDelete = filteredTasks.first(where: { $0.id == taskId }) {
-                    deleteTask(taskToDelete)
+                    // Use delete method without tracking individual deletions
+                    dataController.delete(taskToDelete)
                 }
             }
             selectedTaskIds.removeAll()

@@ -9,6 +9,7 @@ import SwiftUI
 import CoreData
 import UserNotifications
 import UIKit
+import AmplitudeSwift
 
 struct TaskFormView: View {
     @Environment(\.dismiss) private var dismiss
@@ -617,9 +618,12 @@ struct TaskFormView: View {
             customReminderTime = -(customReminderMinutes * 60)
         }
         
+        // Get reference to Amplitude
+        let appDelegate = UIApplication.shared.delegate as? AppDelegate
+        
         switch mode {
         case .add:
-            if let _ = dataController.addTask(
+            if let newTask = dataController.addTask(
                 title: title,
                 description: taskDescription,
                 dueDate: dueDate,
@@ -629,6 +633,16 @@ struct TaskFormView: View {
                 customReminderTime: customReminderTime
             ) {
                 success = true
+                
+                // Track task creation
+                appDelegate?.amplitude.track(
+                    eventType: "task_created",
+                    eventProperties: [
+                        "priority": priority,
+                        "has_category": selectedCategoryId != nil,
+                        "has_reminder": reminderType != 0
+                    ]
+                )
             }
             
         case .edit(let taskId):
@@ -645,6 +659,18 @@ struct TaskFormView: View {
                     reminderType: reminderType,
                     customReminderTime: customReminderTime
                 )
+                
+                if success {
+                    // Track task update
+                    appDelegate?.amplitude.track(
+                        eventType: "task_updated",
+                        eventProperties: [
+                            "priority": priority,
+                            "has_category": selectedCategoryId != nil,
+                            "has_reminder": reminderType != 0
+                        ]
+                    )
+                }
             }
         }
         
