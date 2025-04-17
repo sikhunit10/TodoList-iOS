@@ -2,607 +2,269 @@
 //  TodoWidgets.swift
 //  SimpleTodoWidget
 //
-//  Created by Harjot Singh on 05/04/25.
+//  Simplified widget showing only today's tasks
 //
 
 import WidgetKit
 import SwiftUI
 import CoreData
 
-// MARK: - TimelineEntry
-
+// MARK: - Timeline Entry
 struct TodoWidgetEntry: TimelineEntry {
     let date: Date
     let todayTasks: [TaskInfo]
     let priorityTasks: [TaskInfo]
-    let refreshToken: UUID  // Add a refresh token to force widget updates
+    let showPriority: Bool
+    let refreshToken: UUID
 }
 
-// A lightweight task info struct to avoid CoreData objects in the widget
+// MARK: - TaskInfo
 struct TaskInfo: Identifiable {
     let id: UUID
     let title: String
     let dueDate: Date?
-    let priority: Int
     let isCompleted: Bool
 }
 
-// MARK: - Data Provider
-
-// Helper class to hold CoreData state (using class instead of struct to allow mutation in closures)
+// MARK: - CoreData Store Helper
 class WidgetCoreDataStore {
-    var viewContext: NSManagedObjectContext
-    var failedToLoadStore = false
-    
+    // Default in-memory context to satisfy initialization rules
+    var viewContext: NSManagedObjectContext = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
+    var failedToLoadStore: Bool = false
+
     init() {
-        // Try to find the CoreData model
-        print("Widget - Looking for CoreData model")
-        
-        // First, create an in-memory context as a fallback
-        let tempContext = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
-        self.viewContext = tempContext
-        self.failedToLoadStore = true
-        
-        // Try to initialize a container without model (just for debugging)
         let container = NSPersistentContainer(name: "TodoListMore")
-        
-        // Set up shared container store (will use sample data since model isn't found)
-        setupStore(container: container)
-    }
-    
-    private func setupStore(container: NSPersistentContainer) {
-        // Use shared App Group container for accessing the same store as the main app
         let groupID = "group.com.harjot.TodoListApp.SimpleTodoWidget"
-        print("Widget - Using app group ID: \(groupID)")
-        
-        // Check if we can get the container URL for the app group
-        let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID)
-        
-        if let containerURL = containerURL {
-            print("Widget - Found app group container")
-            let storeURL = containerURL.appendingPathComponent("TodoListMore.sqlite")
-            
-            let fileExists = FileManager.default.fileExists(atPath: storeURL.path)
-            print("Widget - Database file exists: \(fileExists)")
-            
-            // Set up the store description to use the shared container
-            let storeDescription = NSPersistentStoreDescription(url: storeURL)
-            container.persistentStoreDescriptions = [storeDescription]
-            
-            // Check container contents without logging paths
-            do {
-                let contentCount = try FileManager.default.contentsOfDirectory(at: containerURL, includingPropertiesForKeys: nil).count
-                print("Widget - Container has \(contentCount) items")
-            } catch {
-                print("Widget - Error checking container contents")
-            }
+        if let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID) {
+            let storeURL = url.appendingPathComponent("TodoListMore.sqlite")
+            let desc = NSPersistentStoreDescription(url: storeURL)
+            container.persistentStoreDescriptions = [desc]
         } else {
-            print("Widget - CRITICAL ERROR: Failed to get container URL for app group")
-            print("Widget - This usually means the app group doesn't exist or isn't properly configured")
-            self.failedToLoadStore = true
+            failedToLoadStore = true
         }
-        
-        // Attempt to load the store with improved concurrency handling
-        let group = DispatchGroup()
-        group.enter()
-        
-        // Capture container reference locally to avoid capturing self
-        let storeContainer = container
-        
-        // Weak reference to self to break retain cycle
-        container.loadPersistentStores { [weak self] (_, error) in
-            defer {
-                group.leave() // Ensure we always leave the group
-            }
-            
+        // Load the persistent store asynchronously
+        container.loadPersistentStores { [weak self] _, error in
             guard let self = self else { return }
-            
-            if let error = error {
-                print("Widget - Failed to load stores: \(error.localizedDescription)")
+            if error != nil {
                 self.failedToLoadStore = true
-            } else {
-                print("Widget - Successfully loaded persistent store")
-                // Store loaded successfully, update flag
-                self.failedToLoadStore = false
-                // Update view context
-                self.viewContext = storeContainer.viewContext
             }
-        }
-        
-        // Wait for store loading to complete (with flexible timeout)
-        let result = group.wait(timeout: .now() + 3.0) // Increased timeout for reliability
-        if result == .timedOut {
-            print("Widget - Timed out waiting for store to load")
-            self.failedToLoadStore = true
-            // Attempt to recover
-            self.viewContext.reset()
+            // Update to the real viewContext
+            self.viewContext = container.viewContext
         }
     }
 }
 
-struct TodoWidgetProvider: TimelineProvider {
-    // Use a class to handle CoreData operations
-    private let coreDataStore = WidgetCoreDataStore()
-    
-    // Computed property to access the view context
-    var viewContext: NSManagedObjectContext {
-        return coreDataStore.viewContext
-    }
-    
-    // Property to check if store loading failed
-    var failedToLoadStore: Bool {
-        return coreDataStore.failedToLoadStore
-    }
-    
-    init() {
-        // CoreData setup is now handled by WidgetCoreDataStore
-        print("Widget - Provider initialized")
-        
-        // Log CoreData status
-        if failedToLoadStore {
-            print("Widget - CoreData store loading failed, will use sample data")
-        } else {
-            print("Widget - CoreData store loaded successfully")
-        }
-    }
-    
+// MARK: - Timeline Provider
+struct TodayTasksProvider: TimelineProvider {
+    private let store = WidgetCoreDataStore()
+    private var context: NSManagedObjectContext { store.viewContext }
+    private var failed: Bool { store.failedToLoadStore }
+
     func placeholder(in context: Context) -> TodoWidgetEntry {
-        // Return empty placeholder data
-        return TodoWidgetEntry(date: Date(), todayTasks: [], priorityTasks: [], refreshToken: UUID())
+        TodoWidgetEntry(
+            date: Date(),
+            todayTasks: [],
+            priorityTasks: [],
+            showPriority: true,
+            refreshToken: UUID()
+        )
     }
-    
+
     func getSnapshot(in context: Context, completion: @escaping (TodoWidgetEntry) -> Void) {
-        let entry = getWidgetEntry()
-        completion(entry)
+        completion(
+            TodoWidgetEntry(
+                date: Date(),
+                todayTasks: [],
+                priorityTasks: [],
+                showPriority: true,
+                refreshToken: UUID()
+            )
+        )
     }
-    
+
     func getTimeline(in context: Context, completion: @escaping (Timeline<TodoWidgetEntry>) -> Void) {
-        let currentDate = Date()
-        let entry = getWidgetEntry()
-        
-        // Add debug info
-        print("Widget - Timeline update. Today's tasks count: \(entry.todayTasks.count)")
-        if entry.todayTasks.isEmpty {
-            print("Widget - No today's tasks found!")
-        } else {
-            print("Widget - Today's tasks: \(entry.todayTasks.map { $0.title })")
-        }
-        
-        // Set a reasonable update interval to balance freshness and battery usage
-        // Use 15 minutes for regular updates, or next hour boundary for overnight
-        var nextUpdateDate: Date
-        
-        if Calendar.current.isDateInToday(currentDate) {
-            // During the day, update every 15 minutes
-            nextUpdateDate = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate) ?? currentDate
-        } else {
-            // Overnight, update at the next hour boundary
-            let components = DateComponents(minute: 0, second: 0)
-            nextUpdateDate = Calendar.current.nextDate(after: currentDate, matching: components, matchingPolicy: .nextTime) ?? currentDate
-        }
-        
-        let timeline = Timeline(entries: [entry], policy: .after(nextUpdateDate))
+        // Fetch tasks
+        let today = fetchTodayTasks()
+        let priority = fetchPriorityTasks()
+        let now = Date()
+        // Two-phase display: priority then today each minute
+        let entry1 = TodoWidgetEntry(
+            date: now,
+            todayTasks: today,
+            priorityTasks: priority,
+            showPriority: true,
+            refreshToken: UUID()
+        )
+        let entry2 = TodoWidgetEntry(
+            date: now.addingTimeInterval(60),
+            todayTasks: today,
+            priorityTasks: priority,
+            showPriority: false,
+            refreshToken: UUID()
+        )
+        // Reload data after two minutes
+        let reloadDate = now.addingTimeInterval(120)
+        let timeline = Timeline(entries: [entry1, entry2], policy: .after(reloadDate))
         completion(timeline)
     }
-    
-    // Helper to get data for the widget with improved memory management
-    private func getWidgetEntry() -> TodoWidgetEntry {
-        // Use autoreleasepool to prevent memory leaks during widget updates
-        return autoreleasepool { () -> TodoWidgetEntry in
-            // Clear any caches to ensure we're getting fresh data
-            viewContext.reset()
-            
-            // Get today's tasks
-            let todayTasks = fetchTodayTasks()
-            
-            // Get priority tasks
-            let priorityTasks = fetchPriorityTasks()
-            
-            return TodoWidgetEntry(
-                date: Date(), 
-                todayTasks: todayTasks, 
-                priorityTasks: priorityTasks,
-                refreshToken: UUID()  // Generate new token for each refresh
-            )
-        }
-    }
-    
-    // Return a single placeholder task for error cases rather than empty array
-    private func getEmptyTasks() -> [TaskInfo] {
-        print("Widget - No tasks available to display, creating placeholder")
-        // Create a single invisible placeholder to prevent system error icons
-        return [
-            TaskInfo(
-                id: UUID(), 
-                title: "No tasks available", 
-                dueDate: Date(), 
-                priority: 1, 
-                isCompleted: false
-            )
-        ]
-    }
-    
-    // Fetch tasks due today
+
+    // Removed loadEntry; timeline entries generated in getTimeline
+
     private func fetchTodayTasks() -> [TaskInfo] {
-        // If we already know the store failed to load, just return empty array
-        if failedToLoadStore {
-            print("Widget - Store failed to load, no tasks to display")
-            return getEmptyTasks()
-        }
-        
-        print("Widget - Attempting to fetch today's tasks")
-        
-        // First try to count all tasks to see if CoreData is working
-        let allTasksRequest = NSFetchRequest<NSManagedObject>(entityName: "Task")
-        
-        // Check if we can access CoreData at all
+        if failed { return [] }
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: Date())
+        let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        let req: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "Task")
+        req.predicate = NSPredicate(
+            format: "dueDate >= %@ AND dueDate < %@ AND isCompleted == NO",
+            startOfDay as NSDate,
+            startOfTomorrow as NSDate
+        )
+        req.sortDescriptors = [NSSortDescriptor(key: "dueDate", ascending: true)]
+        req.fetchLimit = 5
         do {
-            let allTasksCount = try viewContext.count(for: allTasksRequest)
-            print("Widget - Total number of tasks in CoreData: \(allTasksCount)")
-            
-            // If CoreData seems empty, display placeholder message
-            if allTasksCount == 0 {
-                print("Widget - No tasks found in CoreData")
-                return [
-                    TaskInfo(
-                        id: UUID(),
-                        title: "No tasks available",
-                        dueDate: Date(),
-                        priority: 0,
-                        isCompleted: false
-                    )
-                ]
-            }
-        } catch {
-            print("Widget - Error accessing CoreData: \(error)")
-            return getEmptyTasks()
-        }
-        
-        // Get today's date range using the same method as the main app
-        let startOfDay = Calendar.current.startOfDay(for: Date())
-        let startOfTomorrow = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
-        
-        // For debugging
-        print("Widget - Today's range: \(startOfDay) to \(startOfTomorrow)")
-        
-        let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "Task")
-        let predicateString = "dueDate >= %@ AND dueDate < %@ AND isCompleted == NO"
-        fetchRequest.predicate = NSPredicate(format: predicateString, startOfDay as NSDate, startOfTomorrow as NSDate)
-        print("Widget - Using predicate: \(predicateString) with dates: \(startOfDay) to \(startOfTomorrow)")
-        
-        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "dueDate", ascending: true)]
-        fetchRequest.fetchLimit = 5 // Limit for performance
-        
-        do {
-            let fetchedTasks = try viewContext.fetch(fetchRequest)
-            return fetchedTasks.compactMap { task -> TaskInfo? in
-                guard let id = task.value(forKey: "id") as? UUID,
-                      let title = task.value(forKey: "title") as? String,
-                      let priority = task.value(forKey: "priority") as? Int16,
-                      let isCompleted = task.value(forKey: "isCompleted") as? Bool else {
+            let results = try context.fetch(req)
+            return results.compactMap { obj in
+                guard let id = obj.value(forKey: "id") as? UUID,
+                      let title = obj.value(forKey: "title") as? String,
+                      let isCompleted = obj.value(forKey: "isCompleted") as? Bool else {
                     return nil
                 }
-                
-                let dueDate = task.value(forKey: "dueDate") as? Date
-                
-                return TaskInfo(
-                    id: id,
-                    title: title,
-                    dueDate: dueDate,
-                    priority: Int(priority),
-                    isCompleted: isCompleted
-                )
+                let dueDate = obj.value(forKey: "dueDate") as? Date
+                return TaskInfo(id: id, title: title, dueDate: dueDate, isCompleted: isCompleted)
             }
         } catch {
-            print("Error fetching today's tasks for widget: \(error)")
             return []
         }
     }
     
-    // Fetch high priority tasks
     private func fetchPriorityTasks() -> [TaskInfo] {
-        // If we already know the store failed to load, just return empty array
-        if failedToLoadStore {
-            print("Widget - Store failed to load, no priority tasks to display")
-            return getEmptyTasks()
-        }
-        
-        print("Widget - Attempting to fetch priority tasks")
-        
-        // Check if we can access CoreData at all
-        let allTasksRequest = NSFetchRequest<NSManagedObject>(entityName: "Task")
+        if failed { return [] }
+        let req: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "Task")
+        req.predicate = NSPredicate(format: "priority == 3 AND isCompleted == NO")
+        req.sortDescriptors = [NSSortDescriptor(key: "dueDate", ascending: true)]
+        req.fetchLimit = 5
         do {
-            let allTasksCount = try viewContext.count(for: allTasksRequest)
-            print("Widget - Priority task check: \(allTasksCount) total tasks found")
-            
-            if allTasksCount == 0 {
-                // If there are no tasks at all, return a placeholder
-                print("Widget - No tasks at all, no priority tasks to display")
-                return [
-                    TaskInfo(
-                        id: UUID(),
-                        title: "No priority tasks",
-                        dueDate: Date(),
-                        priority: 0,
-                        isCompleted: false
-                    )
-                ]
-            }
-        } catch {
-            print("Widget - Error in fetchPriorityTasks: \(error)")
-            return getEmptyTasks()
-        }
-        
-        let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "Task")
-        fetchRequest.predicate = NSPredicate(format: "priority == 3 AND isCompleted == NO") // High priority (3)
-        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "dueDate", ascending: true)]
-        fetchRequest.fetchLimit = 5 // Limit for performance
-        
-        do {
-            let fetchedTasks = try viewContext.fetch(fetchRequest)
-            return fetchedTasks.compactMap { task -> TaskInfo? in
-                guard let id = task.value(forKey: "id") as? UUID,
-                      let title = task.value(forKey: "title") as? String,
-                      let priority = task.value(forKey: "priority") as? Int16,
-                      let isCompleted = task.value(forKey: "isCompleted") as? Bool else {
+            let results = try context.fetch(req)
+            return results.compactMap { obj in
+                guard let id = obj.value(forKey: "id") as? UUID,
+                      let title = obj.value(forKey: "title") as? String,
+                      let isCompleted = obj.value(forKey: "isCompleted") as? Bool else {
                     return nil
                 }
-                
-                let dueDate = task.value(forKey: "dueDate") as? Date
-                
-                return TaskInfo(
-                    id: id,
-                    title: title,
-                    dueDate: dueDate,
-                    priority: Int(priority),
-                    isCompleted: isCompleted
-                )
+                let dueDate = obj.value(forKey: "dueDate") as? Date
+                return TaskInfo(id: id, title: title, dueDate: dueDate, isCompleted: isCompleted)
             }
         } catch {
-            print("Error fetching priority tasks for widget: \(error)")
             return []
         }
     }
 }
 
-// MARK: - Widget Views
-
-// Today's Tasks Widget View
+// MARK: - Widget View
 struct TodayTasksWidgetView: View {
     let entry: TodoWidgetEntry
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            // Header
-            HStack {
-                Image(systemName: "calendar")
-                    .foregroundColor(.blue)
-                    .font(.system(size: 12, weight: .semibold))
-                Text("Today's Tasks")
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-                Spacer()
-            }
-            .padding(.bottom, 2)
-            
-            if entry.todayTasks.isEmpty || (entry.todayTasks.count == 1 && entry.todayTasks[0].title == "No tasks available") {
-                Spacer()
-                VStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle")
-                        .font(.system(size: 18))
-                        .foregroundColor(.blue.opacity(0.7))
-                    Text("No tasks today")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-                Spacer()
-            } else {
-                // Tasks list with improved design
-                VStack(alignment: .leading, spacing: 5) {
-                    ForEach(entry.todayTasks.prefix(4)) { task in
-                        HStack(spacing: 6) {
-                            // Task status indicator
-                            ZStack {
-                                Circle()
-                                    .strokeBorder(Color.blue, lineWidth: 1.5)
-                                    .frame(width: 14, height: 14)
-                                
-                                if task.isCompleted {
-                                    Circle()
-                                        .fill(Color.blue)
-                                        .frame(width: 8, height: 8)
-                                }
-                            }
-                            
-                            // Task title with one-line overflow ellipsis
-                            Text(task.title)
-                                .font(.system(size: 12, weight: .medium))
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                            
-                            Spacer(minLength: 4)
-                            
-                            // Time badge
-                            if let dueDate = task.dueDate {
-                                Text(formatTime(dueDate))
-                                    .font(.system(size: 10, weight: .medium))
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 1)
-                                    .background(Color.blue.opacity(0.1))
-                                    .foregroundColor(.blue)
-                                    .clipShape(RoundedRectangle(cornerRadius: 3))
-                            }
-                        }
-                        .padding(.vertical, 2)
-                    }
-                    
-                    // Show count of additional tasks if any
-                    if entry.todayTasks.count > 4 {
-                        Text("+ \(entry.todayTasks.count - 4) more")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
-                            .padding(.top, 2)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
-                }
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .containerBackground(for: .widget) {
-            Color(.systemBackground)
-        }
-        .widgetURL(URL(string: "todolistmore://today"))
-        .privacySensitive(false)
-    }
-    
-    private func formatTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm"
-        return formatter.string(from: date)
-    }
-}
 
-// Priority Tasks Widget View
-struct PriorityTasksWidgetView: View {
-    let entry: TodoWidgetEntry
-    
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            // Header
-            HStack {
-                Image(systemName: "exclamationmark.triangle")
-                    .foregroundColor(.red)
-                    .font(.system(size: 12, weight: .semibold))
-                Text("Priority Tasks")
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-                Spacer()
-            }
-            .padding(.bottom, 2)
-            
-            if entry.priorityTasks.isEmpty || (entry.priorityTasks.count == 1 && entry.priorityTasks[0].title == "No tasks available") {
-                Spacer()
-                VStack(spacing: 4) {
-                    Image(systemName: "flag.slash")
-                        .font(.system(size: 18))
-                        .foregroundColor(.red.opacity(0.7))
+        // Animate between priority and today every 10 seconds
+        TimelineView(.periodic(from: entry.date, by: 10)) { context in
+            content(showPriority: isPriorityPhase(date: context.date))
+        }
+    }
+
+    @ViewBuilder
+    private func content(showPriority: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if showPriority {
+                // Priority view
+                HStack {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundColor(.red)
+                    Text("Priority Tasks")
+                        .font(.subheadline).bold()
+                    Spacer()
+                }
+                if entry.priorityTasks.isEmpty {
+                    Spacer()
                     Text("No priority tasks")
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-                Spacer()
-            } else {
-                // Tasks list with improved design
-                VStack(alignment: .leading, spacing: 5) {
-                    ForEach(entry.priorityTasks.prefix(4)) { task in
-                        HStack(spacing: 6) {
-                            // Priority indicator
+                    Spacer()
+                } else {
+                    ForEach(entry.priorityTasks.prefix(5)) { task in
+                        HStack(spacing: 8) {
                             Image(systemName: "flag.fill")
-                                .font(.system(size: 10))
                                 .foregroundColor(.red)
-                                .frame(width: 14, height: 14)
-                            
-                            // Task title with one-line overflow ellipsis
+                                .frame(width: 12, height: 12)
                             Text(task.title)
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.system(size: 12))
                                 .lineLimit(1)
-                                .truncationMode(.tail)
-                            
-                            Spacer(minLength: 4)
-                            
-                            // Date badge
-                            if let dueDate = task.dueDate {
-                                Text(formatDate(dueDate))
-                                    .font(.system(size: 10, weight: .medium))
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 1)
-                                    .background(Color.red.opacity(0.1))
+                            Spacer()
+                            if let date = task.dueDate {
+                                Text(timeFormatter.string(from: date))
+                                    .font(.caption2)
                                     .foregroundColor(.red)
-                                    .clipShape(RoundedRectangle(cornerRadius: 3))
                             }
                         }
-                        .padding(.vertical, 2)
-                    }
-                    
-                    // Show count of additional tasks if any
-                    if entry.priorityTasks.count > 4 {
-                        Text("+ \(entry.priorityTasks.count - 4) more")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
-                            .padding(.top, 2)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
                     }
                 }
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .containerBackground(for: .widget) {
-            Color(.systemBackground)
-        }
-        .widgetURL(URL(string: "todolistmore://priority"))
-        .privacySensitive(false)
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        return formatter.string(from: date)
-    }
-}
-
-// Quick Add Task Widget View
-struct QuickAddTaskWidgetView: View {
-    var body: some View {
-        ZStack {
-            // Background gradient
-            LinearGradient(
-                gradient: Gradient(colors: [Color.blue.opacity(0.1), Color.blue.opacity(0.05)]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            
-            VStack(spacing: 8) {
-                // Animated-looking plus icon
-                ZStack {
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 52, height: 52)
-                        .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
-                    
-                    Image(systemName: "plus")
-                        .font(.system(size: 24, weight: .semibold))
+            } else {
+                // Today's view
+                HStack {
+                    Image(systemName: "calendar")
                         .foregroundColor(.blue)
+                    Text("Today's Tasks")
+                        .font(.subheadline).bold()
+                    Spacer()
                 }
-                
-                Text("Add Task")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primary)
-                
-                Text("Tap to create")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                if entry.todayTasks.isEmpty {
+                    Spacer()
+                    Text("No tasks today")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                } else {
+                    ForEach(entry.todayTasks.prefix(5)) { task in
+                        HStack(spacing: 8) {
+                            Circle()
+                                .strokeBorder(Color.blue, lineWidth: 1.5)
+                                .frame(width: 12, height: 12)
+                            Text(task.title)
+                                .font(.system(size: 12))
+                                .lineLimit(1)
+                            Spacer()
+                            if let date = task.dueDate {
+                                Text(timeFormatter.string(from: date))
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                }
             }
         }
-        .containerBackground(for: .widget) {
-            Color(.systemBackground)
-        }
-        .widgetURL(URL(string: "todolistmore://new"))
-        .privacySensitive(false)
+        .padding(8)
+    }
+
+    private func isPriorityPhase(date: Date) -> Bool {
+        let interval = date.timeIntervalSinceReferenceDate
+        // every 10s, alternate
+        return Int(interval / 10) % 2 == 0
+    }
+
+    private var timeFormatter: DateFormatter {
+        let f = DateFormatter()
+        f.dateFormat = "h:mm"
+        return f
     }
 }
 
-// MARK: - Widget Configurations
-
-// Today's Tasks Widget
+// MARK: - Widget Configuration
 struct TodayTasksWidget: Widget {
-    static let kind = "TodayTasksWidget"
-    
+    let kind: String = "TodayTasksWidget"
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: Self.kind, provider: TodoWidgetProvider()) { entry in
+        StaticConfiguration(kind: kind, provider: TodayTasksProvider()) { entry in
             TodayTasksWidgetView(entry: entry)
         }
         .configurationDisplayName("Today's Tasks")
@@ -612,74 +274,20 @@ struct TodayTasksWidget: Widget {
     }
 }
 
-// Priority Tasks Widget
-struct PriorityTasksWidget: Widget {
-    static let kind = "PriorityTasksWidget"
-    
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: Self.kind, provider: TodoWidgetProvider()) { entry in
-            PriorityTasksWidgetView(entry: entry)
-        }
-        .configurationDisplayName("Priority Tasks")
-        .description("Shows high priority tasks")
-        .supportedFamilies([.systemSmall, .systemMedium])
-        .contentMarginsDisabled()
-    }
-}
-
-// Quick Add Widget
-struct QuickAddTaskWidget: Widget {
-    static let kind = "QuickAddTaskWidget"
-    
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: Self.kind, provider: TodoWidgetProvider()) { entry in
-            QuickAddTaskWidgetView()
-        }
-        .configurationDisplayName("Quick Add Task")
-        .description("Quickly add a new task")
-        .supportedFamilies([.systemSmall, .systemMedium])
-        .contentMarginsDisabled()
-    }
-}
-
-// MARK: - Preview Providers
-
-#Preview("Today Tasks (Small)", as: .systemSmall) {
+// Preview: show priority then today
+#Preview("Widget Demo", as: .systemSmall) {
     TodayTasksWidget()
 } timeline: {
-    TodoWidgetEntry(
-        date: .now,
-        todayTasks: [
-            TaskInfo(id: UUID(), title: "Complete project", dueDate: Date().addingTimeInterval(3600), priority: 2, isCompleted: false),
-            TaskInfo(id: UUID(), title: "Call client", dueDate: Date().addingTimeInterval(7200), priority: 3, isCompleted: false)
-        ],
-        priorityTasks: [],
-        refreshToken: UUID()
-    )
+    let now = Date()
+    let sampleToday = TaskInfo(id: UUID(), title: "Sample Today", dueDate: now.addingTimeInterval(3600), isCompleted: false)
+    let samplePriority = TaskInfo(id: UUID(), title: "Urgent Bug Fix", dueDate: now.addingTimeInterval(7200), isCompleted: false)
+    return [
+        TodoWidgetEntry(
+            date: now,
+            todayTasks: [sampleToday],
+            priorityTasks: [samplePriority],
+            showPriority: true,
+            refreshToken: UUID()
+        )
+    ]
 }
-
-// Medium sized preview removed
-
-#Preview("Priority Tasks", as: .systemSmall) {
-    PriorityTasksWidget()
-} timeline: {
-    TodoWidgetEntry(
-        date: .now,
-        todayTasks: [],
-        priorityTasks: [
-            TaskInfo(id: UUID(), title: "Critical bug fix", dueDate: Date().addingTimeInterval(86400), priority: 3, isCompleted: false),
-            TaskInfo(id: UUID(), title: "Client emergency", dueDate: Date().addingTimeInterval(172800), priority: 3, isCompleted: false)
-        ],
-        refreshToken: UUID()
-    )
-}
-
-// Medium sized preview removed
-
-#Preview("Quick Add", as: .systemSmall) {
-    QuickAddTaskWidget()
-} timeline: {
-    TodoWidgetEntry(date: .now, todayTasks: [], priorityTasks: [], refreshToken: UUID())
-}
-
-// Medium sized preview removed

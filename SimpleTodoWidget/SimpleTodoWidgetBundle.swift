@@ -11,8 +11,7 @@ import SwiftUI
 @main
 struct TodoWidgetsBundle: WidgetBundle {
     var body: some Widget {
+        // Only show the Today's Tasks widget
         TodayTasksWidget()
-        PriorityTasksWidget()
-        QuickAddTaskWidget()
     }
 }
