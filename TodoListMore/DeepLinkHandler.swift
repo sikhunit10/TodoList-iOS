@@ -12,6 +12,15 @@ enum DeepLink: Equatable {
     case priority
     case newTask
     
+    /// String identifier for plist-safe notifications
+    var rawValue: String {
+        switch self {
+        case .today: return "today"
+        case .priority: return "priority"
+        case .newTask: return "new"
+        }
+    }
+    
     init?(url: URL) {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
               let scheme = components.scheme,
@@ -35,6 +44,11 @@ enum DeepLink: Equatable {
         }
     }
 }
+// MARK: - Notification Names
+extension Notification.Name {
+    /// Posted when a deep link is received from widget or URL
+    static let deepLinkReceived = Notification.Name("deepLinkReceived")
+}
 
 class DeepLinkManager: ObservableObject {
     @Published var currentDeepLink: DeepLink?
@@ -45,11 +59,11 @@ class DeepLinkManager: ObservableObject {
             DispatchQueue.main.async {
                 self.currentDeepLink = deepLink
                 
-                // Post a notification to ensure the app can respond
+                // Post a notification with plist-safe payload
                 NotificationCenter.default.post(
-                    name: Notification.Name("deepLinkReceived"),
+                    name: .deepLinkReceived,
                     object: nil,
-                    userInfo: ["deepLink": deepLink]
+                    userInfo: ["deepLink": deepLink.rawValue]
                 )
             }
         } else {
