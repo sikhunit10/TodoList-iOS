@@ -37,31 +37,25 @@ class DataController: ObservableObject {
         let groupID = "group.com.harjot.TodoListApp.SimpleTodoWidget"
         
         print("App - Using app group ID: \(groupID)")
-        let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID)
+        // Obtain shared container URL for app group (fatal on failure)
+        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID) else {
+            fatalError("App - CRITICAL ERROR: Failed to get container URL for app group: \(groupID). Check entitlements and provisioning profiles.")
+        }
+        print("App - Found app group container")
+        let storeURL = containerURL.appendingPathComponent("TodoListMore.sqlite")
+        print("App - Will store CoreData in shared container")
         
-        if let containerURL = containerURL {
-            print("App - Found app group container")
-            let storeURL = containerURL.appendingPathComponent("TodoListMore.sqlite")
-            print("App - Will store CoreData in shared container")
-            
-            // Check what's in the container directory without logging paths
-            do {
-                let contentCount = try FileManager.default.contentsOfDirectory(at: containerURL, includingPropertiesForKeys: nil).count
-                print("App - Container has \(contentCount) items")
-            } catch {
-                print("App - Error checking container contents")
-            }
-        } else {
-            print("App - CRITICAL ERROR: Failed to get container URL for app group: \(groupID)")
-            print("App - Check your entitlements and provisioning profiles")
+        // Check contents of the shared container
+        do {
+            let contentCount = try FileManager.default.contentsOfDirectory(at: containerURL, includingPropertiesForKeys: nil).count
+            print("App - Container has \(contentCount) items")
+        } catch {
+            print("App - Error checking container contents: \(error.localizedDescription)")
         }
         
         // Configure store URL in the shared container
-        if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID) {
-            let storeURL = containerURL.appendingPathComponent("TodoListMore.sqlite")
-            let storeDescription = NSPersistentStoreDescription(url: storeURL)
-            container.persistentStoreDescriptions = [storeDescription]
-        }
+        let storeDescription = NSPersistentStoreDescription(url: storeURL)
+        container.persistentStoreDescriptions = [storeDescription]
         
         // Configure container for local storage
         container.loadPersistentStores { description, error in
@@ -150,7 +144,9 @@ class DataController: ObservableObject {
                     // Debug: Count today's tasks
                     let calendar = Calendar.current
                     let startOfDay = calendar.startOfDay(for: Date())
-                    let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+                    // Safely compute start of tomorrow, fallback to 24h interval
+                    let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfDay)
+                        ?? startOfDay.addingTimeInterval(24 * 60 * 60)
                     
                     let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "Task")
                     fetchRequest.predicate = NSPredicate(format: "dueDate >= %@ AND dueDate < %@ AND isCompleted == NO", startOfDay as NSDate, startOfTomorrow as NSDate)
@@ -224,12 +220,11 @@ class DataController: ObservableObject {
         // Always try to set reminder attributes (force enable)
         do {
             task.setValue(reminderType, forKey: "reminderType")
-            
             if let customTime = customReminderTime {
                 task.setValue(customTime, forKey: "customReminderTime")
             }
         } catch {
-            print("Warning: Failed to set reminder attributes: \(error.localizedDescription)")
+            assertionFailure("Failed to set reminder attributes: \(error.localizedDescription)")
         }
         
         // If we have a category ID, find that category and associate it
@@ -323,13 +318,12 @@ class DataController: ObservableObject {
                     task.setValue(reminderType, forKey: "reminderType")
                     needsReschedule = true
                 }
-                
                 if let customReminderTime = customReminderTime {
                     task.setValue(customReminderTime, forKey: "customReminderTime")
                     needsReschedule = true
                 }
             } catch {
-                print("Warning: Failed to update reminder attributes: \(error.localizedDescription)")
+                assertionFailure("Failed to update reminder attributes: \(error.localizedDescription)")
             }
             
             var updatedCategoryId: UUID? = nil
