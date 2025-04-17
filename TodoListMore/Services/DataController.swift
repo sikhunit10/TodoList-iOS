@@ -198,8 +198,9 @@ class DataController: ObservableObject {
     
     // MARK: - Task Operations
     
-    func addTask(title: String, description: String, dueDate: Date?, priority: Int16, 
-              categoryId: UUID? = nil, reminderType: Int16 = 0, customReminderTime: Double? = nil) -> NSManagedObject? {
+    func addTask(title: String, description: String, dueDate: Date?, priority: Int16,
+                 recurrence: Int16 = RecurrenceRule.none.rawValue,
+                 categoryId: UUID? = nil, reminderType: Int16 = 0, customReminderTime: Double? = nil) -> NSManagedObject? {
         let context = container.viewContext
         
         // Using string-based Key-Value Coding for safe access to entity
@@ -216,6 +217,8 @@ class DataController: ObservableObject {
         task.setValue(false, forKey: "isCompleted")
         task.setValue(now, forKey: "dateCreated")
         task.setValue(now, forKey: "dateModified")
+        // Set recurrence rule
+        task.setValue(recurrence, forKey: "recurrence")
         
         // Always try to set reminder attributes (force enable)
         do {
@@ -258,9 +261,9 @@ class DataController: ObservableObject {
         return task
     }
     
-    func updateTask(id: UUID, title: String? = nil, description: String? = nil, 
+    func updateTask(id: UUID, title: String? = nil, description: String? = nil,
                     dueDate: Date? = nil, removeDueDate: Bool = false,
-                    priority: Int16? = nil, isCompleted: Bool? = nil, 
+                    priority: Int16? = nil, recurrence: Int16? = nil, isCompleted: Bool? = nil,
                     categoryId: UUID? = nil, removeCategoryId: Bool = false,
                     reminderType: Int16? = nil, customReminderTime: Double? = nil) -> Bool {
         
@@ -299,6 +302,11 @@ class DataController: ObservableObject {
             
             if let priority = priority {
                 task.setValue(priority, forKey: "priority")
+            }
+            // Update recurrence rule if provided
+            if let recurrence = recurrence {
+                task.setValue(recurrence, forKey: "recurrence")
+                needsReschedule = true
             }
             
             if let isCompleted = isCompleted {
@@ -370,18 +378,51 @@ class DataController: ObservableObject {
         
         do {
             let tasks = try context.fetch(fetchRequest)
-            if let task = tasks.first {
-                let currentValue = task.value(forKey: "isCompleted") as? Bool ?? false
-                let newValue = !currentValue
-                task.setValue(newValue, forKey: "isCompleted")
-                task.setValue(Date(), forKey: "dateModified")
-                
-                // Save with specific notification and include the new completion status
-                save(notificationName: .tasksDidChange, userInfo: ["taskId": id, "isCompleted": newValue])
-                return true
-            } else {
+            // Ensure we have a Task object
+            guard let firstObj = tasks.first, let task = firstObj as? Task else {
                 return false
             }
+            let currentValue = task.isCompleted
+            let rule = task.recurrenceRuleEnum
+            // Handle recurring tasks: when marking complete, schedule next occurrence instead of completing
+            if !currentValue && rule != .none {
+                if let dueDate = task.dueDate {
+                    let calendar = Calendar.current
+                    var nextDate: Date?
+                    switch rule {
+                    case .daily:
+                        nextDate = calendar.date(byAdding: .day, value: 1, to: dueDate)
+                    case .weekly:
+                        nextDate = calendar.date(byAdding: .weekOfYear, value: 1, to: dueDate)
+                    case .monthly:
+                        nextDate = calendar.date(byAdding: .month, value: 1, to: dueDate)
+                    case .yearly:
+                        nextDate = calendar.date(byAdding: .year, value: 1, to: dueDate)
+                    default:
+                        break
+                    }
+                    if let next = nextDate {
+                        task.dueDate = next
+                    }
+                }
+                task.dateModified = Date()
+                // Schedule reminder for next occurrence if supported
+                if hasReminderSupport, let _ = task.dueDate {
+                    task.scheduleReminder()
+                }
+                save(notificationName: .tasksDidChange, userInfo: ["taskId": id, "isRecurring": true])
+                return true
+            }
+            // Non-recurring or toggling back to incomplete: standard behavior
+            let newValue = !currentValue
+            task.isCompleted = newValue
+            task.dateModified = Date()
+            if newValue {
+                // Remove any existing reminders when marked complete
+                task.removeReminders()
+            }
+            save(notificationName: .tasksDidChange, userInfo: ["taskId": id, "isCompleted": newValue])
+            return true
         } catch {
             print("Error toggling task completion: \(error.localizedDescription)")
             return false
