@@ -187,12 +187,18 @@ struct TaskCardHeaderView: View {
             }
             
             Spacer()
+            // Recurrence indicator for recurring tasks
+            if task.recurrenceRuleEnum != .none {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.secondary)
+            }
             
             // Priority flag
             if priority > 1 {
                 Image(systemName: priority == 3 ? "flag.fill" : "flag")
-                    .foregroundColor(gradientColors[0])
                     .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(gradientColors[0])
                     .shadow(color: gradientColors[0].opacity(0.3), radius: 2, x: 0, y: 1)
             }
         }
