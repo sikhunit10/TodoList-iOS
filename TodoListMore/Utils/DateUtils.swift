@@ -13,7 +13,11 @@ struct DateUtils {
         let calendar = Calendar.current
         let now = Date()
         let components = calendar.dateComponents([.day], from: now, to: date)
-        return components.day != nil && components.day! <= AppTheme.UI.dueSoonThresholdDays
+        // Only future dates within threshold count as "due soon"
+        if let day = components.day {
+            return day >= 0 && day <= AppTheme.UI.dueSoonThresholdDays
+        }
+        return false
     }
     
     /// Check if task is overdue
@@ -63,7 +67,9 @@ struct DateUtils {
     static func getTodayDateRange() -> (startOfDay: Date, startOfTomorrow: Date) {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: Date())
-        let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        // Fallback to adding 24h if calendar returns nil
+        let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfDay)
+            ?? startOfDay.addingTimeInterval(24 * 60 * 60)
         
         return (startOfDay, startOfTomorrow)
     }
