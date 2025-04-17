@@ -119,6 +119,19 @@ extension Task {
         // Always try to remove reminders
         NotificationManager.shared.removeTaskReminders(taskId: id)
     }
+    
+    /// Computed property to get the recurrence rule enum for the task
+    var recurrenceRuleEnum: RecurrenceRule {
+        var rawValue: Int16 = RecurrenceRule.none.rawValue
+        do {
+            if let value = try self.primitiveValue(forKey: "recurrence") as? Int16 {
+                rawValue = value
+            }
+        } catch {
+            return .none
+        }
+        return RecurrenceRule(rawValue: rawValue) ?? .none
+    }
 }
 
 // MARK: - Category Extensions
