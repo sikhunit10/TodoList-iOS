@@ -28,6 +28,8 @@ struct TaskFormView: View {
     @State private var showCategoryForm = false
     // State for tracking date changes
     @State private var previousDate = Date()
+    // Recurrence field
+    @State private var recurrenceRule: Int16 = RecurrenceRule.none.rawValue
     
     // Reminder fields
     @State private var reminderType: Int16 = 0
@@ -85,6 +87,18 @@ struct TaskFormView: View {
                     .padding(.horizontal)
                     .padding(.top, 12)
                     .padding(.bottom, 16)
+                    // Recurrence summary
+                    HStack {
+                        Text("Repeats:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text((RecurrenceRule(rawValue: recurrenceRule) ?? .none).name)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 12)
                 }
                 .background(colorScheme == .dark ? Color(hex: "#2C2C2E") : .white)
                 
@@ -383,6 +397,50 @@ struct TaskFormView: View {
                         .cornerRadius(16)
                         .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.0 : 0.05), radius: 8, x: 0, y: 2)
                         
+                        // Recurrence Card
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack {
+                                Image(systemName: "repeat")
+                                    .foregroundColor(.accentColor)
+                                    .frame(width: 22)
+                                Text("Recurrence")
+                                    .font(.headline)
+                            }
+                            .padding(.bottom, 4)
+
+                            VStack(alignment: .leading, spacing: 12) {
+                                ForEach(RecurrenceRule.allCases, id: \.id) { option in
+                                    Button {
+                                        recurrenceRule = option.rawValue
+                                    } label: {
+                                        HStack {
+                                            Text(option.name)
+                                                .foregroundColor(.primary)
+                                            Spacer()
+                                            if recurrenceRule == option.rawValue {
+                                                Image(systemName: "checkmark.circle.fill")
+                                                    .foregroundColor(.accentColor)
+                                            }
+                                        }
+                                        .contentShape(Rectangle())
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 10)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .fill(recurrenceRule == option.rawValue ?
+                                                      (colorScheme == .dark ? Color(hex: "#3A3A3C") : Color(hex: "#F0F0F5")) :
+                                                      .clear)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(colorScheme == .dark ? Color(hex: "#2C2C2E") : .white)
+                        .cornerRadius(16)
+                        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.0 : 0.05), radius: 8, x: 0, y: 2)
+
                         // Reminder Card
                         VStack(alignment: .leading, spacing: 16) {
                                 HStack {
@@ -599,6 +657,12 @@ struct TaskFormView: View {
                     
                     // Show custom time picker if reminder type is custom (type 5)
                     showCustomTimePicker = (reminderType == 5)
+                    // Load recurrence rule if available
+                    do {
+                        recurrenceRule = (task.value(forKey: "recurrence") as? Int16) ?? RecurrenceRule.none.rawValue
+                    } catch {
+                        recurrenceRule = RecurrenceRule.none.rawValue
+                    }
                 }
             }
         } catch {
@@ -628,6 +692,7 @@ struct TaskFormView: View {
                 description: taskDescription,
                 dueDate: dueDate,
                 priority: priority,
+                recurrence: recurrenceRule,
                 categoryId: selectedCategoryId,
                 reminderType: reminderType,
                 customReminderTime: customReminderTime
@@ -654,6 +719,7 @@ struct TaskFormView: View {
                     dueDate: dueDate,
                     removeDueDate: false,
                     priority: priority,
+                    recurrence: recurrenceRule,
                     categoryId: selectedCategoryId,
                     removeCategoryId: selectedCategoryId == nil,
                     reminderType: reminderType,
