@@ -91,19 +91,10 @@ class NotificationManager {
                 }
             }
             
-            // Check if notification time is in the past
+            // If notification time is in the past or now, schedule a fallback immediate reminder
             if notificationTime <= Date() {
-                print("Reminder time is in the past: \(notificationTime)")
-                
-                // If the due date is still in the future, schedule an immediate reminder
-                if dueDate > Date() {
-                    print("Setting immediate reminder for upcoming task")
-                    // Set notification time to 30 seconds from now as a fallback
-                    notificationTime = Date().addingTimeInterval(30)
-                } else {
-                    print("Not scheduling reminder: time is in the past")
-                    return
-                }
+                print("Reminder time is in the past or now: \(notificationTime). Scheduling fallback notification in 30s.")
+                notificationTime = Date().addingTimeInterval(30)
             }
             
             // Format due date for notification
@@ -115,7 +106,8 @@ class NotificationManager {
             // Create notification content
             let content = UNMutableNotificationContent()
             content.title = title
-            content.body = "Due: \(formattedDueDate)"
+            // Use provided body if available, otherwise show due date
+            content.body = body.isEmpty ? "Due: \(formattedDueDate)" : body
             content.sound = .default
             
             // Add task ID as user info to identify the notification
