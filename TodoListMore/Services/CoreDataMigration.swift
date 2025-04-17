@@ -28,16 +28,16 @@ class CoreDataMigration {
         if hasAttributes {
             // Create a test instance to verify KVC access works
             do {
-                let testInstance = NSEntityDescription.insertNewObject(forEntityName: "Task", into: viewContext)
-                // Try setting a value
-                testInstance.setValue(0, forKey: "reminderType")
-                testInstance.setValue(0.0, forKey: "customReminderTime")
-                // If we got here, the attributes exist and are accessible
-                viewContext.delete(testInstance) // Clean up
-                
-                // Since we've verified the attributes exist, return true and log success
-                print("✅ Reminder attributes verified in Core Data model")
-                return true
+            let testInstance = NSEntityDescription.insertNewObject(forEntityName: "Task", into: viewContext)
+            // Try setting a value
+            testInstance.setValue(0, forKey: "reminderType")
+            testInstance.setValue(0.0, forKey: "customReminderTime")
+            // Clean up test instance and rollback any changes to keep context pristine
+            viewContext.delete(testInstance)
+            viewContext.rollback()
+            // Since we've verified the attributes exist, return true and log success
+            print("✅ Reminder attributes verified in Core Data model")
+            return true
             } catch {
                 print("❌ Error verifying reminder attributes: \(error.localizedDescription)")
                 return false
