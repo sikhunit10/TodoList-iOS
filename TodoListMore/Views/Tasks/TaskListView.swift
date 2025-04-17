@@ -49,14 +49,31 @@ struct TaskListView: View {
         animation: .default
     ) private var tasks: FetchedResults<Task>
     
-    // Computed property to filter tasks based on completion visibility
+    // Computed property to filter tasks based on selected filter and completion toggle
     private var filteredTasks: [Task] {
         let tasksArray = Array(tasks)
         
-        if !completedTasksVisible && selectedFilter == .all {
+        // Explicitly handle each filter, including priority
+        switch selectedFilter {
+        case .priority:
+            // Show only incomplete tasks sorted by priority descending
+            return tasksArray
+                .filter { !$0.isCompleted }
+                .sorted { $0.priority > $1.priority }
+        case .active:
+            // Only show incomplete tasks
             return tasksArray.filter { !$0.isCompleted }
+        case .completed:
+            // Only show completed tasks
+            return tasksArray.filter { $0.isCompleted }
+        default:
+            // 'all' filter respects completedTasksVisible toggle
+            if selectedFilter == .all && !completedTasksVisible {
+                return tasksArray.filter { !$0.isCompleted }
+            }
+            // Other filters (today, upcoming) are driven by the fetch request predicate
+            return tasksArray
         }
-        return tasksArray
     }
     
     var body: some View {
@@ -152,6 +169,22 @@ struct TaskListView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .dataDidChange)) { _ in
             DispatchQueue.main.async { updateFetchRequest() }
+        }
+        // Handle deep links (e.g. from widgets) for filters
+        .onReceive(NotificationCenter.default.publisher(for: .deepLinkReceived)) { notification in
+            if let raw = notification.userInfo?["deepLink"] as? String {
+                // Switch to appropriate filter in response to deep link
+                switch raw {
+                case DeepLink.today.rawValue:
+                    selectedFilter = .today
+                case DeepLink.priority.rawValue:
+                    selectedFilter = .priority
+                default:
+                    break
+                }
+                // Refresh the fetch request to apply new filter
+                updateFetchRequest(forceRefreshDates: true)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
             // App is going to background
@@ -469,10 +502,17 @@ struct TaskListView: View {
     // Check if task would be visible in current filter
     private func isNewTaskVisibleInCurrentTab() -> Bool {
         switch selectedFilter {
-        case .all: return true
-        case .active: return true
-        case .completed: return false
-        case .today, .upcoming: return false
+        case .all:
+            return true
+        case .active:
+            return true
+        case .completed:
+            return false
+        case .today, .upcoming:
+            return false
+        case .priority:
+            // Priority view shows all incomplete tasks (sorted by priority)
+            return true
         }
     }
     
@@ -494,11 +534,13 @@ struct TaskListView: View {
             predicates.append(searchPredicate)
         }
         
-        // Status filter
+        // Status filter (including priority)
         switch selectedFilter {
         case .active:
+            // Show only incomplete tasks
             predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: false)))
         case .completed:
+            // Show only completed tasks
             predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: true)))
         case .today:
             // Always get fresh date range to handle app returning from background
@@ -513,8 +555,11 @@ struct TaskListView: View {
             let startOfDay = calendar.startOfDay(for: Date())
             predicates.append(NSPredicate(format: "dueDate > %@", startOfDay as NSDate))
             predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: false)))
+        case .priority:
+            // Show only incomplete tasks; sorting by priority happens in filteredTasks
+            predicates.append(NSPredicate(format: "isCompleted == %@", NSNumber(value: false)))
         case .all:
-            // We handle the filter for completed tasks in the computed property
+            // 'All' respects completedTasksVisible toggle in filteredTasks
             break
         }
         

@@ -63,6 +63,7 @@ enum TaskFilter: String, CaseIterable, Identifiable {
     case active
     case today
     case upcoming
+    case priority
     case completed
     
     var id: String { self.rawValue }
@@ -73,6 +74,7 @@ enum TaskFilter: String, CaseIterable, Identifiable {
         case .active: return "Active"
         case .today: return "Today"
         case .upcoming: return "Upcoming"
+        case .priority: return "Priority"
         case .completed: return "Completed"
         }
     }
