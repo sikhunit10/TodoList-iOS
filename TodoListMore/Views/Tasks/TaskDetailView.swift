@@ -78,6 +78,21 @@ struct TaskDetailView: View {
                 }
                 .padding(.vertical, 4)
                 .accessibilityElement(children: .combine)
+                // Recurrence rule display
+                HStack {
+                    Label {
+                        Text("Repeats")
+                    } icon: {
+                        Image(systemName: "repeat")
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Text(task.recurrenceRuleEnum.name)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.vertical, 4)
+                .accessibilityElement(children: .combine)
                 
                 HStack {
                     Label {
@@ -237,10 +252,42 @@ struct TaskDetailView: View {
     }
     
     private func toggleCompletion() {
-        task.isCompleted = !task.isCompleted
+        let currentValue = task.isCompleted
+        let rule = task.recurrenceRuleEnum
+        // Handle recurring tasks: schedule next occurrence instead of marking complete
+        if !currentValue && rule != .none {
+            if let dueDate = task.dueDate {
+                let calendar = Calendar.current
+                var nextDate: Date?
+                switch rule {
+                case .daily:
+                    nextDate = calendar.date(byAdding: .day, value: 1, to: dueDate)
+                case .weekly:
+                    nextDate = calendar.date(byAdding: .weekOfYear, value: 1, to: dueDate)
+                case .monthly:
+                    nextDate = calendar.date(byAdding: .month, value: 1, to: dueDate)
+                case .yearly:
+                    nextDate = calendar.date(byAdding: .year, value: 1, to: dueDate)
+                default:
+                    break
+                }
+                if let next = nextDate {
+                    task.dueDate = next
+                }
+            }
+            task.dateModified = Date()
+            try? viewContext.save()
+            if dataController.hasReminderSupport {
+                task.scheduleReminder()
+            }
+            // Refresh UI to reflect new due date
+            viewContext.refreshAllObjects()
+            return
+        }
+        // Non-recurring: toggle completion as usual
+        task.isCompleted = !currentValue
         task.dateModified = Date()
         try? viewContext.save()
-        
         // Ensure the change is immediately visible in other views
         viewContext.refreshAllObjects()
     }
