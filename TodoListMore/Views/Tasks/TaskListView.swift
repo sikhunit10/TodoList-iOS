@@ -521,21 +521,8 @@ struct TaskListView: View {
         // Apply predicates
         let predicate = predicates.isEmpty ? nil : NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
         
-        // If we're forcing a date refresh for time-sensitive filters, apply a slight delay
-        // to ensure the NSPredicate is properly refreshed with current date values
-        if forceRefreshDates && (selectedFilter == .today || selectedFilter == .upcoming) {
-            // First clear the predicate to force a reset
-            tasks.nsPredicate = nil
-            
-            // Small delay to ensure the UI can update
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                // Then apply the new predicate with fresh date values
-                self.tasks.nsPredicate = predicate
-            }
-        } else {
-            // Normal case - apply immediately
-            tasks.nsPredicate = predicate
-        }
+        // Apply predicate immediately
+        tasks.nsPredicate = predicate
     }
     
     // Delete a task
