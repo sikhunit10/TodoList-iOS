@@ -154,11 +154,9 @@ struct TodoListMoreApp: App {
         ) { _ in
             // Track session end and calculate duration
             let appDelegate = UIApplication.shared.delegate as? AppDelegate
-            
             let sessionId = UserDefaults.standard.string(forKey: "CurrentSessionId") ?? "unknown"
             let sessionStartTime = UserDefaults.standard.object(forKey: "SessionStartTime") as? Date ?? Date()
             let sessionDuration = Int(Date().timeIntervalSince(sessionStartTime))
-            
             appDelegate?.amplitude.track(
                 eventType: "app_resigned_active",
                 eventProperties: [
@@ -166,6 +164,11 @@ struct TodoListMoreApp: App {
                     "session_duration_seconds": sessionDuration
                 ]
             )
+            // Trigger widget refresh before app background
+            if #available(iOS 14.0, *) {
+                WidgetCenter.shared.reloadAllTimelines()
+                print("App - Refreshing widget timelines on resign active")
+            }
         }
         
         // Register for app termination to track potential uninstalls

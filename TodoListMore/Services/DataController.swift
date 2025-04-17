@@ -53,8 +53,10 @@ class DataController: ObservableObject {
             print("App - Error checking container contents: \(error.localizedDescription)")
         }
         
-        // Configure store URL in the shared container
+        // Configure store URL in the shared container with lightweight migration
         let storeDescription = NSPersistentStoreDescription(url: storeURL)
+        storeDescription.shouldMigrateStoreAutomatically = true
+        storeDescription.shouldInferMappingModelAutomatically = true
         container.persistentStoreDescriptions = [storeDescription]
         
         // Configure container for local storage
@@ -165,10 +167,21 @@ class DataController: ObservableObject {
                     NotificationCenter.default.post(name: notificationName, object: nil, userInfo: userInfo)
                 }
                 
-                // Refresh widget data immediately, but with a slight delay to ensure CoreData writes have finished
+                // Refresh widget data immediately to ensure timely updates (even if app is backgrounded)
+                if #available(iOS 14.0, *) {
+                    if Thread.isMainThread {
+                        WidgetCenter.shared.reloadAllTimelines()
+                    } else {
+                        DispatchQueue.main.async {
+                            WidgetCenter.shared.reloadAllTimelines()
+                        }
+                    }
+                    print("App - Refreshing widget timelines after data change (immediate)")
+                }
+                // Also schedule a delayed reload to catch any late writes
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     WidgetCenter.shared.reloadAllTimelines()
-                    print("App - Refreshing widget timelines after data change")
+                    print("App - Refreshing widget timelines after data change (delayed)")
                 }
                 
             } catch {
