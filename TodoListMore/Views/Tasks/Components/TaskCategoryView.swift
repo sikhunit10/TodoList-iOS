@@ -24,30 +24,30 @@ struct TaskCategoryView: View {
     @Environment(\.managedObjectContext) private var viewContext
     
     var body: some View {
-        // Category badge with fixed width
-        HStack(spacing: 5) {
-            // Color dot
+        // Category badge with fixed width and improved visibility
+        HStack(spacing: 4) {
+            // Color dot - larger for better visibility
             Circle()
                 .fill(Color(hex: categoryColorHex))
-                .frame(width: 8, height: 8)
+                .frame(width: 10, height: 10)
                 .shadow(color: Color(hex: categoryColorHex).opacity(0.3), radius: 1, x: 0, y: 0)
             
-            // Category name with consistent width handling
-            Text(categoryName)
-                .font(.system(size: 11, weight: .medium))
+            // Category name with optimized handling for "Uncategorized"
+            Text(categoryName == "Uncategorized" ? "No Category" : categoryName)
+                .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .minimumScaleFactor(0.9)
         }
         .id(refreshID) // Use ID for forced refresh
         .frame(width: AppTheme.UI.categoryBadgeWidth) // Fixed width for all category badges
-        .padding(.trailing, 2) // Add a bit more padding on right side
-        .foregroundColor(Color(hex: categoryColorHex).opacity(0.8))
-        .padding(.vertical, 5)
-        .padding(.horizontal, 10)
+        .foregroundColor(Color(hex: categoryColorHex).opacity(0.9)) // Increased opacity for better visibility
+        .padding(.vertical, 6) // Increased vertical padding for larger badge
+        .padding(.horizontal, 10) // Increased horizontal padding for larger badge
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(hex: categoryColorHex).opacity(0.12))
-                .shadow(color: Color(hex: categoryColorHex).opacity(0.1), radius: 1, x: 0, y: 1)
+            RoundedRectangle(cornerRadius: 10) // Larger corner radius for bigger badge
+                .fill(Color(hex: categoryColorHex).opacity(0.18)) // More opaque background for better visibility
+                .shadow(color: Color(hex: categoryColorHex).opacity(0.25), radius: 2, x: 0, y: 1) // Enhanced shadow
         )
         // Update on appear
         .onAppear {
