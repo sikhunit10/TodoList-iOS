@@ -152,8 +152,16 @@ struct TaskCardHeaderView: View {
                     // Call the toggle task method with animation
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         dataController.toggleTaskCompletion(id: id)
-                        // Force refresh to ensure UI updates
+                        
+                        // Force refresh to ensure UI updates - both the task and fetch request
                         task.managedObjectContext?.refresh(task, mergeChanges: true)
+                        
+                        // Post a specific notification to force the list view to update its fetch request
+                        NotificationCenter.default.post(
+                            name: .tasksDidChange,
+                            object: nil,
+                            userInfo: ["taskId": id, "forceRefreshFetchRequest": true]
+                        )
                     }
                 }
             }) {
@@ -225,48 +233,53 @@ struct TaskCardFooterView: View {
     
     @Environment(\.colorScheme) private var colorScheme
     
-    // Create formatter outside the view body
+    // Create date formatter with full AM/PM
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "M/d h:mma" // Compact AM/PM format like "4/1 3:30PM"
+        // Use standard time format with full AM/PM
+        formatter.dateFormat = "M/d h:mm a" // Space before AM/PM for better readability
         return formatter
     }()
     
     var body: some View {
-        // Simplified footer with horizontal layout
-        HStack(alignment: .center, spacing: 4) {
-            // Combined due date and time ago in a single container
-            HStack(spacing: 8) {
-                // Due date badge - compact format
+        // Simplified footer with horizontal layout and better spacing
+        HStack(alignment: .center, spacing: 2) {
+            // Combined due date and time ago container in vertical stack for better visibility
+            VStack(alignment: .leading, spacing: 4) {
+                // Due date badge
                 if let dueDate = dueDate {
-                    HStack(spacing: 3) {
+                    HStack(spacing: 2) {
                         Image(systemName: "calendar")
                             .font(.system(size: 10))
                         Text(dateFormatter.string(from: dueDate))
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: 11, weight: .semibold))
                             .lineLimit(1)
-                            .truncationMode(.middle)
+                            .minimumScaleFactor(0.8)
                     }
-                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.secondary)
+                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.8) : Color.secondary)
                     .padding(.vertical, 3)
                     .padding(.horizontal, 6)
                     .background(colorScheme == .dark ? Color.secondary.opacity(0.2) : Color.secondary.opacity(0.08))
                     .cornerRadius(6)
                 }
                 
-                // Time ago badge right next to due date
+                // Always show time ago text
                 if let dateCreated = dateCreated {
                     Text(DateUtils.timeAgo(from: dateCreated))
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : Color.secondary.opacity(0.8))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.secondary)
                         .lineLimit(1)
+                        .padding(.leading, 2)
                 }
             }
             
-            Spacer()
+            // Flexible spacer with increased minimum width
+            Spacer(minLength: 8)
             
-            // Category at the end
+            // Category at the end with higher layout priority
             TaskCategoryView(task: task)
+                .layoutPriority(2)
+                .padding(.trailing, 2) // Add slight padding at the end
         }
     }
 }

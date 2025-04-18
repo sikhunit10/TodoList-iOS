@@ -35,9 +35,9 @@ struct AppTheme {
         static let dueSoonThresholdDays = 3
         
         // Dimensions
-        static let cardHeight = 90.0
-        static let cardHeightWithDescription = 130.0
-        static let categoryBadgeWidth = 100.0
+        static let cardHeight = 98.0 // Taller to accommodate vertical footer and larger category badge
+        static let cardHeightWithDescription = 138.0 // Taller to accommodate vertical footer and larger category badge
+        static let categoryBadgeWidth = 95.0 // Wider to fit "Uncategorized" text
         static let floatingButtonSize = 62.0
         static let filterIndicatorWidth = 40.0
     }
