@@ -154,8 +154,16 @@ struct TaskListView: View {
                     return
                 }
                 
+                // Check if this is a forced refresh from task completion toggle
+                let forceRefresh = notification.userInfo?["forceRefreshFetchRequest"] as? Bool == true
+                
                 // Always update the fetch request first to maintain filtering consistency
-                updateFetchRequest()
+                updateFetchRequest(forceRefreshDates: forceRefresh)
+                
+                // If a task was marked as completed, force a view context refresh
+                if let isCompleted = notification.userInfo?["isCompleted"] as? Bool, isCompleted {
+                    viewContext.refreshAllObjects()
+                }
                 
                 // Then refresh individual task if needed
                 if let taskId = notification.userInfo?["taskId"] as? UUID,
@@ -391,6 +399,19 @@ struct TaskListView: View {
                     withAnimation {
                         if let id = task.id {
                             dataController.toggleTaskCompletion(id: id)
+                            
+                            // Force a UI update
+                            DispatchQueue.main.async {
+                                // Post notification to force fetch request update
+                                NotificationCenter.default.post(
+                                    name: .tasksDidChange,
+                                    object: nil,
+                                    userInfo: ["taskId": id, "forceRefreshFetchRequest": true]
+                                )
+                                
+                                // Refresh all objects to ensure filter is applied correctly
+                                viewContext.refreshAllObjects()
+                            }
                         }
                     }
                 } label: {
@@ -418,6 +439,19 @@ struct TaskListView: View {
                 if let id = task.id {
                     withAnimation {
                         dataController.toggleTaskCompletion(id: id)
+                        
+                        // Force a UI update for task list filtering
+                        DispatchQueue.main.async {
+                            // Post notification to force fetch request update
+                            NotificationCenter.default.post(
+                                name: .tasksDidChange,
+                                object: nil,
+                                userInfo: ["taskId": id, "forceRefreshFetchRequest": true]
+                            )
+                            
+                            // Refresh all objects to ensure filter is applied
+                            viewContext.refreshAllObjects()
+                        }
                     }
                 }
             } label: {
