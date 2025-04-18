@@ -112,11 +112,40 @@ struct CategoryListView: View {
                             .redacted(reason: .placeholder)
                     }
                 } else if viewModel.categoryModels.isEmpty {
-                    Text("No categories yet. Tap + to add a new category.")
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding()
-                        .listRowBackground(Color.clear)
+                    VStack(spacing: 20) {
+                        Image(systemName: "folder.badge.plus")
+                            .font(.system(size: 40))
+                            .foregroundColor(AppTheme.accentColor)
+                            .padding(.bottom, 5)
+                        
+                        Text("No Categories Found")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.primary)
+                        
+                        Text("Categories help you organize your tasks more efficiently.")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 20)
+                        
+                        Button(action: {
+                            showingAddSheet = true
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Create Category")
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(AppTheme.accentColor)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                        }
+                        .padding(.top, 5)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 30)
+                    .listRowBackground(Color.clear)
                 } else {
                     ForEach(viewModel.categoryModels) { categoryModel in
                         HStack {
@@ -146,16 +175,16 @@ struct CategoryListView: View {
                             }
                         }
                         .listRowInsets(EdgeInsets(
-                            top: 6,
-                            leading: 16,
-                            bottom: 6,
+                            top: 8,
+                            leading: 16, 
+                            bottom: 8,
                             trailing: 16
                         ))
                         .listRowBackground(
                             {
                                 let isSelected = isEditMode && selectedCategoryIds.contains(categoryModel.id)
                                 if isSelected {
-                                    return AppTheme.accentColor.opacity(0.15)
+                                    return AppTheme.accentColor.opacity(0.12)
                                 } else {
                                     return Color(UIColor.secondarySystemGroupedBackground)
                                 }
@@ -264,15 +293,7 @@ struct CategoryListView: View {
                 }
             }
         }
-        .overlay {
-            if !viewModel.isLoading && viewModel.categoryModels.isEmpty {
-                ContentUnavailableView(
-                    "No Categories",
-                    systemImage: "folder.badge.plus",
-                    description: Text("Add a category to organize your tasks")
-                )
-            }
-        }
+        // Remove overlay since we have an improved in-list empty state
         .onAppear {
             // Force refresh when view appears - this will trigger the refresh timer
             let mainQueue = DispatchQueue.main
@@ -322,29 +343,49 @@ struct DirectCategoryRow: View {
     let tasksCount: Int
     
     var body: some View {
-        HStack {
-            Circle()
-                .fill(Color(hex: colorHex))
-                .frame(width: 16, height: 16)
+        HStack(spacing: 12) {
+            // Category color indicator with subtle shadow
+            ZStack {
+                Circle()
+                    .fill(Color(hex: colorHex).opacity(0.2))
+                    .frame(width: 36, height: 36)
+                
+                Circle()
+                    .fill(Color(hex: colorHex))
+                    .frame(width: 16, height: 16)
+            }
             
-            Text(name)
-                .fontWeight(.medium)
-                // Prevent flicker during transitions
-                .contentTransition(.identity)
+            VStack(alignment: .leading, spacing: 4) {
+                // Category name with better typography
+                Text(name)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+                    .contentTransition(.identity)
+                
+                // Subtle indicator of task count
+                Text(tasksCount == 1 ? "1 task" : "\(tasksCount) tasks")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+            }
             
             Spacer()
             
+            // Task count badge with category color
             Text("\(tasksCount)")
-                .foregroundColor(.secondary)
-                .font(.subheadline)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Color(.systemGray6))
-                .cornerRadius(10)
-                // Fix the size to prevent jumping during animations
-                .fixedSize()
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(Color(hex: colorHex))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(hex: colorHex).opacity(0.12))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color(hex: colorHex).opacity(0.2), lineWidth: 1)
+                )
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .contentShape(Rectangle())
     }
 }
@@ -358,25 +399,51 @@ struct CategoryPlaceholderRow: View {
     private let sampleCounts = [5, 3, 2]
     
     var body: some View {
-        HStack {
-            Circle()
-                .fill(Color(hex: sampleColors[index % sampleColors.count]))
-                .frame(width: 16, height: 16)
+        HStack(spacing: 12) {
+            // Category color indicator placeholder
+            ZStack {
+                Circle()
+                    .fill(Color(hex: sampleColors[index % sampleColors.count]).opacity(0.2))
+                    .frame(width: 36, height: 36)
+                
+                Circle()
+                    .fill(Color(hex: sampleColors[index % sampleColors.count]))
+                    .frame(width: 16, height: 16)
+            }
             
-            Text(sampleNames[index % sampleNames.count])
-                .fontWeight(.medium)
+            VStack(alignment: .leading, spacing: 4) {
+                // Category name placeholder
+                Text(sampleNames[index % sampleNames.count])
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                // Task count text placeholder
+                let count = sampleCounts[index % sampleCounts.count]
+                Text(count == 1 ? "1 task" : "\(count) tasks")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+            }
             
             Spacer()
             
-            Text("\(sampleCounts[index % sampleCounts.count])")
-                .foregroundColor(.secondary)
-                .font(.subheadline)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Color(.systemGray6))
-                .cornerRadius(10)
+            // Count badge placeholder
+            let colorHex = sampleColors[index % sampleColors.count]
+            let count = sampleCounts[index % sampleCounts.count]
+            Text("\(count)")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(Color(hex: colorHex))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(hex: colorHex).opacity(0.12))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color(hex: colorHex).opacity(0.2), lineWidth: 1)
+                )
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
     }
 }
 
