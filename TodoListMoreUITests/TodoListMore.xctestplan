@@ -1,0 +1,42 @@
+{
+  "configurations" : [
+    {
+      "id" : "62DB9D39-AD9F-413A-ABD2-9DE0BE7C5A88",
+      "name" : "Default",
+      "options" : {
+        "targetForVariableExpansion" : {
+          "containerPath" : "container:TodoListMore.xcodeproj",
+          "identifier" : "TodoListMoreUITests",
+          "name" : "TodoListMoreUITests"
+        }
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : {
+      "targets" : [
+        {
+          "containerPath" : "container:TodoListMore.xcodeproj",
+          "identifier" : "TodoListMore",
+          "name" : "TodoListMore"
+        }
+      ]
+    },
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:TodoListMore.xcodeproj",
+      "identifier" : "TodoListMoreUITests",
+      "name" : "TodoListMoreUITests"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:TodoListMore.xcodeproj",
+        "identifier" : "14D9998D2DB35C5400BE5181",
+        "name" : "TodoListMoreUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
