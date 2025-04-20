@@ -111,41 +111,6 @@ struct CategoryListView: View {
                         CategoryPlaceholderRow(index: index)
                             .redacted(reason: .placeholder)
                     }
-                } else if viewModel.categoryModels.isEmpty {
-                    VStack(spacing: 20) {
-                        Image(systemName: "folder.badge.plus")
-                            .font(.system(size: 40))
-                            .foregroundColor(AppTheme.accentColor)
-                            .padding(.bottom, 5)
-                        
-                        Text("No Categories Found")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.primary)
-                        
-                        Text("Categories help you organize your tasks more efficiently.")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 20)
-                        
-                        Button(action: {
-                            showingAddSheet = true
-                        }) {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
-                                Text("Create Category")
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(AppTheme.accentColor)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                        }
-                        .padding(.top, 5)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 30)
-                    .listRowBackground(Color.clear)
                 } else {
                     ForEach(viewModel.categoryModels) { categoryModel in
                         HStack {
@@ -223,6 +188,43 @@ struct CategoryListView: View {
             .listStyle(.insetGrouped)
             // Use default list style to maintain rounded corners
             .animation(.easeInOut(duration: 0.2), value: viewModel.categoryModels)
+            .overlay(alignment: .center) {
+                if !viewModel.isLoading && viewModel.categoryModels.isEmpty {
+                    VStack(spacing: 20) {
+                        Image(systemName: "folder.badge.plus")
+                            .font(.system(size: 40))
+                            .foregroundColor(AppTheme.accentColor)
+                            .padding(.bottom, 5)
+
+                        Text("No Categories Found")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.primary)
+
+                        Text("Categories help you organize your tasks more efficiently.")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 20)
+
+                        Button(action: {
+                            showingAddSheet = true
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Create Category")
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(AppTheme.accentColor)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                        }
+                        .padding(.top, 5)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(UIColor.systemGroupedBackground))
+                }
+            }
         }
         // Set background color for the entire view
         .background(Color(UIColor.systemGroupedBackground))
@@ -328,10 +330,6 @@ struct CategoryListView: View {
             // Clear selection after deletion
             selectedCategoryIds.removeAll()
             
-            // Exit edit mode if there are no more categories
-            if viewModel.categoryModels.isEmpty {
-                isEditMode = false
-            }
         }
     }
 }

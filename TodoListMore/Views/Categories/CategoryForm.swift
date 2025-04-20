@@ -37,17 +37,20 @@ struct CategoryForm: View {
             Section(header: Text("Color")) {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 10) {
                     ForEach(0..<predefinedColors.count, id: \.self) { index in
-                        Circle()
-                            .fill(Color(hex: predefinedColors[index]))
-                            .frame(width: 30, height: 30)
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.primary, lineWidth: selectedColorIndex == index ? 2 : 0)
-                                    .padding(2)
-                            )
-                            .onTapGesture {
-                                selectedColorIndex = index
-                            }
+                        Button(action: {
+                            selectedColorIndex = index
+                        }) {
+                            Circle()
+                                .fill(Color(hex: predefinedColors[index]))
+                                .frame(width: 30, height: 30)
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.primary, lineWidth: selectedColorIndex == index ? 2 : 0)
+                                        .padding(2)
+                                )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .accessibilityIdentifier("CategoryColor_\(index)")
                     }
                 }
                 .padding(.vertical, 8)

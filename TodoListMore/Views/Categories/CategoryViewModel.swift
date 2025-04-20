@@ -132,44 +132,30 @@ class CategoryViewModel: ObservableObject {
     
     /// Refresh all data from Core Data and update UI models
     func refreshData() {
+        // Indicate loading state
         isLoading = true
-        
-        // Get a shared background context instead of creating a new one each time
-        let backgroundContext = dataController.container.viewContext
-        backgroundContext.perform { [weak self] in
-            guard let self = self else { return }
-            
-            let fetchRequest = Category.fetchRequest()
-            
-            // Apply search filter if needed
-            if !self.searchText.isEmpty {
-                fetchRequest.predicate = NSPredicate(format: "name CONTAINS[cd] %@", self.searchText)
+
+        // Prepare fetch request for Category entities
+        let fetchRequest: NSFetchRequest<Category> = Category.fetchRequest()
+        if !searchText.isEmpty {
+            fetchRequest.predicate = NSPredicate(format: "name CONTAINS[cd] %@", searchText)
+        }
+        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
+
+        do {
+            // Perform synchronous fetch on main context
+            let categories = try context.fetch(fetchRequest)
+            // Map to UI models
+            let uiModels = categories.map { category in
+                let taskCount = category.tasks?.count ?? 0
+                return CategoryUIModel(from: category, taskCount: taskCount)
             }
-            
-            // Sort categories by name
-            fetchRequest.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
-            
-            do {
-                // Fetch categories
-                let categories = try backgroundContext.fetch(fetchRequest)
-                
-                // Convert to UI models
-                let uiModels = categories.map { category in
-                    let taskCount = (category.tasks?.count ?? 0)
-                    return CategoryUIModel(from: category, taskCount: taskCount)
-                }
-                
-                // Update on main thread
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    self.categoryModels = uiModels
-                }
-            } catch {
-                print("Error fetching categories: \(error)")
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                }
-            }
+            // Update published properties
+            isLoading = false
+            categoryModels = uiModels
+        } catch {
+            print("Error fetching categories: \(error)")
+            isLoading = false
         }
     }
     
