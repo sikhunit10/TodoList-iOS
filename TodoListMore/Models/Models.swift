@@ -145,6 +145,16 @@ extension Category {
         return colorHex ?? AppTheme.defaultCategoryColor.hex
     }
     
+    /// Convenience to get an emoji/icon for the category
+    var safeIcon: String {
+        return icon ?? ""
+    }
+    
+    /// Convenience to get the note/description for the category
+    var safeNote: String {
+        return note ?? ""
+    }
+    
     var taskArray: [Task] {
         let set = tasks as? Set<Task> ?? []
         return Array(set)

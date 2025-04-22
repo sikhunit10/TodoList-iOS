@@ -68,4 +68,14 @@ extension Color {
             opacity: Double(a) / 255
         )
     }
+    
+    /// Validate hex code format and return if valid
+    static func isValidHex(_ hex: String) -> Bool {
+        let hexRegex = "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+        guard let regex = try? NSRegularExpression(pattern: hexRegex, options: []) else {
+            return false
+        }
+        let range = NSRange(location: 0, length: hex.utf16.count)
+        return regex.firstMatch(in: hex, options: [], range: range) != nil
+    }
 }

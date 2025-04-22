@@ -17,8 +17,26 @@ struct SettingsView: View {
     @State private var showingAlert = false
     @State private var alertTitle = "Error"
     @State private var alertMessage = ""
+    @State private var showOnboarding = false
+    @Binding var tabSelection: Int
     
     @AppStorage("completedTasksVisible") private var completedTasksVisible = true
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    
+    // Get app version from Info.plist
+    private var appVersion: String {
+        return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+    }
+    
+    // Default initializer for previews
+    init() {
+        self._tabSelection = .constant(2)
+    }
+    
+    // Initializer with tab binding
+    init(tabSelection: Binding<Int>) {
+        self._tabSelection = tabSelection
+    }
     
     var body: some View {
         SettingsListContent()
@@ -109,16 +127,23 @@ struct SettingsView: View {
     
     private var AboutSection: some View {
         Section {
+            // Show Onboarding Again
+            Button {
+                showOnboarding = true
+            } label: {
+                Label("Show App Introduction", systemImage: "play.circle")
+            }
+            
             // Version info
             HStack {
                 Label("Version", systemImage: "info.circle")
                 Spacer()
-                Text("1.0.0")
+                Text(appVersion)
                     .foregroundColor(.secondary)
             }
             
             // Privacy Policy link
-            Link(destination: URL(string: "https://example.com/privacy")!) {
+            Link(destination: URL(string: "https://harjotsinghpanesar.com/privacy_policy")!) {
                 HStack {
                     Label("Privacy Policy", systemImage: "hand.raised")
                     Spacer()
@@ -128,7 +153,7 @@ struct SettingsView: View {
             }
             
             // Support link
-            Link(destination: URL(string: "https://example.com/support")!) {
+            Link(destination: URL(string: "https://harjotsinghpanesar.com/contact")!) {
                 HStack {
                     Label("Support", systemImage: "questionmark.circle")
                     Spacer()
@@ -138,6 +163,9 @@ struct SettingsView: View {
             }
         } header: {
             Text("About")
+        }
+        .sheet(isPresented: $showOnboarding) {
+            OnboardingView(tabSelection: $tabSelection)
         }
     }
     

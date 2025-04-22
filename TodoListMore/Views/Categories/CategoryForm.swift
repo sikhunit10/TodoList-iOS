@@ -14,9 +14,22 @@ struct CategoryForm: View {
     @Environment(\.managedObjectContext) private var viewContext
     
     @State private var name = ""
-    @State private var selectedColorIndex = 0
+    @State private var icon = ""
+    @State private var note = ""
+    /// Index for preset colors grid selection
+    @State private var selectedColorIndex: Int = 0
+    @State private var selectedColor: Color = AppTheme.defaultCategoryColor
     @State private var isLoading = false
     
+    // Validation states
+    @State private var nameError: String? = nil
+    @State private var iconError: String? = nil
+    @State private var colorError: String? = nil
+    
+    // Form mode (add new or edit existing category)
+    let mode: CategoryFormMode
+    let viewModel: CategoryViewModel
+    /// Preset colors for quick selection
     let predefinedColors = [
         "#3478F6", // Blue
         "#30D158", // Green
@@ -24,21 +37,70 @@ struct CategoryForm: View {
         "#FF453A"  // Red
     ]
     
-    // Form mode (add new or edit existing category)
-    let mode: CategoryFormMode
-    let viewModel: CategoryViewModel
-    
     var body: some View {
         Form {
             Section(header: Text("Category Details")) {
-                TextField("Name", text: $name)
+                VStack(alignment: .leading, spacing: 4) {
+                    TextField("Name", text: $name)
+                        .onChange(of: name) { _ in
+                            validateName()
+                        }
+                    
+                    if let error = nameError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    TextField("Icon (emoji)", text: $icon)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                        .onChange(of: icon) { _ in
+                            validateIcon()
+                        }
+                    
+                    if let error = iconError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                }
             }
-            
+
             Section(header: Text("Color")) {
+                ColorPicker("Pick a color", selection: $selectedColor)
+                    .labelsHidden()
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Hex code:")
+                        TextField("#RRGGBB", text: Binding(
+                            get: { selectedColor.hex },
+                            set: { newHex in
+                                selectedColor = Color(hex: newHex)
+                                validateColor(newHex)
+                            }
+                        ))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .autocapitalization(.allCharacters)
+                    }
+                    
+                    if let error = colorError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                }
+                
+                // Preset colors for quick selection
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 10) {
                     ForEach(0..<predefinedColors.count, id: \.self) { index in
                         Button(action: {
                             selectedColorIndex = index
+                            selectedColor = Color(hex: predefinedColors[index])
+                            colorError = nil // Clear any color error when selecting preset
                         }) {
                             Circle()
                                 .fill(Color(hex: predefinedColors[index]))
@@ -55,6 +117,11 @@ struct CategoryForm: View {
                 }
                 .padding(.vertical, 8)
             }
+
+            Section(header: Text("Note")) {
+                TextEditor(text: $note)
+                    .frame(minHeight: 80)
+            }
         }
         .navigationTitle(isAddMode ? "New Category" : "Edit Category")
         .toolbar {
@@ -66,6 +133,12 @@ struct CategoryForm: View {
             
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
+                    // Validate all fields before saving
+                    validateAllFields()
+                    
+                    // Only proceed if all validations pass
+                    if hasValidationErrors { return }
+                    
                     let success = saveCategory()
                     
                     // Force UI to update immediately after save
@@ -76,7 +149,7 @@ struct CategoryForm: View {
                     
                     dismiss()
                 }
-                .disabled(name.isEmpty || isLoading)
+                .disabled(saveButtonDisabled)
             }
         }
         .disabled(isLoading)
@@ -85,6 +158,54 @@ struct CategoryForm: View {
                 loadCategory(withId: categoryId)
             }
         }
+    }
+    
+    // MARK: - Validation Methods
+    
+    /// Validates the category name field
+    private func validateName() {
+        if name.isEmpty {
+            nameError = "Name is required"
+        } else if name.count > 30 {
+            nameError = "Name must be 30 characters or less"
+        } else {
+            nameError = nil
+        }
+    }
+    
+    /// Validates the icon field (should be a single emoji or empty)
+    private func validateIcon() {
+        if icon.count > 2 {
+            iconError = "Please use a single emoji or leave empty"
+        } else {
+            iconError = nil
+        }
+    }
+    
+    /// Validates the color hex code format
+    private func validateColor(_ hexCode: String) {
+        if !hexCode.isEmpty && !Color.isValidHex(hexCode) {
+            colorError = "Invalid hex code format (use #RGB or #RRGGBB)"
+        } else {
+            colorError = nil
+        }
+    }
+    
+    /// Validates all fields at once
+    private func validateAllFields() {
+        validateName()
+        validateIcon()
+        validateColor(selectedColor.hex)
+    }
+    
+    /// Returns true if any validation errors exist
+    private var hasValidationErrors: Bool {
+        return nameError != nil || iconError != nil || colorError != nil
+    }
+    
+    /// Determines if the save button should be disabled
+    private var saveButtonDisabled: Bool {
+        return name.isEmpty || isLoading || hasValidationErrors
     }
     
     // MARK: - Private Methods
@@ -98,10 +219,21 @@ struct CategoryForm: View {
         do {
             if let category = try viewContext.fetch(fetchRequest).first {
                 name = category.name ?? ""
+                // Load icon and note
+                icon = category.safeIcon
+                note = category.safeNote
+                // Load saved color
+                if let colorHex = category.colorHex {
+                    selectedColor = Color(hex: colorHex)
+                    // Update preset grid selection if matching
+                    if let idx = predefinedColors.firstIndex(of: colorHex) {
+                        selectedColorIndex = idx
+                    }
+                }
                 
-                if let colorHex = category.colorHex,
-                   let index = predefinedColors.firstIndex(of: colorHex) {
-                    selectedColorIndex = index
+                // Validate loaded data
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    self.validateAllFields()
                 }
             }
         } catch {
@@ -118,14 +250,17 @@ struct CategoryForm: View {
         case .add:
             success = viewModel.addCategory(
                 name: name,
-                colorHex: predefinedColors[selectedColorIndex]
+                colorHex: selectedColor.hex,
+                icon: icon,
+                note: note
             )
-            
         case .edit(let categoryId):
             success = viewModel.updateCategory(
                 id: categoryId,
                 name: name,
-                colorHex: predefinedColors[selectedColorIndex]
+                colorHex: selectedColor.hex,
+                icon: icon,
+                note: note
             )
         }
         
@@ -145,4 +280,15 @@ struct CategoryForm: View {
 enum CategoryFormMode {
     case add
     case edit(UUID)
+}
+
+// Extension to add regex pattern matching to String
+extension String {
+    func matches(pattern: String) -> Bool {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return false
+        }
+        let range = NSRange(location: 0, length: self.utf16.count)
+        return regex.firstMatch(in: self, options: [], range: range) != nil
+    }
 }

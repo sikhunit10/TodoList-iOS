@@ -114,11 +114,13 @@ struct CategoryListView: View {
                 } else {
                     ForEach(viewModel.categoryModels) { categoryModel in
                         HStack {
-                            DirectCategoryRow(
-                                name: categoryModel.name,
-                                colorHex: categoryModel.colorHex,
-                                tasksCount: categoryModel.taskCount
-                            )
+                        DirectCategoryRow(
+                            name: categoryModel.name,
+                            colorHex: categoryModel.colorHex,
+                            tasksCount: categoryModel.taskCount,
+                            icon: categoryModel.icon,
+                            note: categoryModel.note
+                        )
                             
                             // Only show checkmark in edit mode when selected
                             if isEditMode && selectedCategoryIds.contains(categoryModel.id) {
@@ -275,7 +277,9 @@ struct CategoryListView: View {
             NavigationStack {
                 CategoryForm(mode: .add, viewModel: viewModel)
             }
-            .presentationDetents([.medium])
+            // Allow medium and large detents and show drag indicator
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
             .onDisappear {
                 // Force refresh when sheet is dismissed
                 DispatchQueue.main.async {
@@ -287,7 +291,9 @@ struct CategoryListView: View {
             NavigationStack {
                 CategoryForm(mode: .edit(categoryId), viewModel: viewModel)
             }
-            .presentationDetents([.medium])
+            // Allow medium and large detents and show drag indicator
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
             .onDisappear {
                 // Force refresh when sheet is dismissed
                 DispatchQueue.main.async {
@@ -334,56 +340,76 @@ struct CategoryListView: View {
     }
 }
 
-// Direct category row using UI model instead of Core Data entity
+// Direct category row using UI model, with inline note expansion
 struct DirectCategoryRow: View {
     let name: String
     let colorHex: String
     let tasksCount: Int
-    
+    /// Optional emoji or icon for the category
+    let icon: String
+    /// Optional note/description
+    let note: String
+    /// Track whether note is expanded inline
+    @State private var isExpanded: Bool = false
+
     var body: some View {
-        HStack(spacing: 12) {
-            // Category color indicator with subtle shadow
-            ZStack {
-                Circle()
-                    .fill(Color(hex: colorHex).opacity(0.2))
-                    .frame(width: 36, height: 36)
-                
-                Circle()
-                    .fill(Color(hex: colorHex))
-                    .frame(width: 16, height: 16)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                // Category color indicator
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: colorHex).opacity(0.2))
+                        .frame(width: 36, height: 36)
+                    Circle()
+                        .fill(Color(hex: colorHex))
+                        .frame(width: 16, height: 16)
+                }
+                // Textual info
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        if !icon.isEmpty { Text(icon) }
+                        Text(name)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
+                    }
+                    Text(tasksCount == 1 ? "1 task" : "\(tasksCount) tasks")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                // Info toggle
+                if !note.isEmpty {
+                    Button(action: { isExpanded.toggle() }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+                // Task count badge
+                Text("\(tasksCount)")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(Color(hex: colorHex))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color(hex: colorHex).opacity(0.12))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color(hex: colorHex).opacity(0.2), lineWidth: 1)
+                    )
             }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                // Category name with better typography
-                Text(name)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary)
-                    .contentTransition(.identity)
-                
-                // Subtle indicator of task count
-                Text(tasksCount == 1 ? "1 task" : "\(tasksCount) tasks")
+            .padding(.vertical, 6)
+            // Inline note
+            if isExpanded && !note.isEmpty {
+                Text(note)
                     .font(.system(size: 13))
                     .foregroundColor(.secondary)
+                    .padding(.horizontal, 16)
+                    .transition(.opacity)
             }
-            
-            Spacer()
-            
-            // Task count badge with category color
-            Text("\(tasksCount)")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(Color(hex: colorHex))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(hex: colorHex).opacity(0.12))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color(hex: colorHex).opacity(0.2), lineWidth: 1)
-                )
         }
-        .padding(.vertical, 6)
         .contentShape(Rectangle())
     }
 }

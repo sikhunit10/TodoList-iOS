@@ -73,7 +73,7 @@ struct ContentView: View {
             
             // Settings tab - gray navigation bar with large title
             NavigationStack {
-                SettingsView()
+                SettingsView(tabSelection: $tabSelection)
                     .navigationTitle("Settings")
                     .navigationBarTitleDisplayMode(.large)
                     .toolbarBackground(.visible, for: .navigationBar)

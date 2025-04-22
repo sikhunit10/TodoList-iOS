@@ -16,12 +16,18 @@ struct CategoryUIModel: Identifiable, Equatable, Hashable {
     let name: String
     let colorHex: String
     let taskCount: Int
+    /// Emoji or icon for quick visual scanning
+    let icon: String
+    /// Optional description or notes about the category
+    let note: String
     
     static func == (lhs: CategoryUIModel, rhs: CategoryUIModel) -> Bool {
-        return lhs.id == rhs.id && 
-               lhs.name == rhs.name && 
+        return lhs.id == rhs.id &&
+               lhs.name == rhs.name &&
                lhs.colorHex == rhs.colorHex &&
-               lhs.taskCount == rhs.taskCount
+               lhs.taskCount == rhs.taskCount &&
+               lhs.icon == rhs.icon &&
+               lhs.note == rhs.note
     }
     
     func hash(into hasher: inout Hasher) {
@@ -29,6 +35,8 @@ struct CategoryUIModel: Identifiable, Equatable, Hashable {
         hasher.combine(name)
         hasher.combine(colorHex)
         hasher.combine(taskCount)
+        hasher.combine(icon)
+        hasher.combine(note)
     }
     
     // Create from Core Data Category entity
@@ -37,6 +45,8 @@ struct CategoryUIModel: Identifiable, Equatable, Hashable {
         self.name = category.safeName
         self.colorHex = category.safeColorHex
         self.taskCount = taskCount
+        self.icon = category.safeIcon
+        self.note = category.safeNote
     }
 }
 
@@ -161,40 +171,69 @@ class CategoryViewModel: ObservableObject {
     
     // MARK: - CRUD Operations
     
-    /// Add a new category
-    func addCategory(name: String, colorHex: String) -> Bool {
+    /// Add a new category with optional icon and note
+    func addCategory(name: String,
+                     colorHex: String,
+                     icon: String? = nil,
+                     note: String? = nil) -> Bool {
         guard !name.isEmpty else { return false }
-        
-        if let _ = dataController.addCategory(name: name, colorHex: colorHex) {
+
+        if let _ = dataController.addCategory(name: name,
+                                              colorHex: colorHex,
+                                              icon: icon,
+                                              note: note) {
             refreshData()
             return true
         }
         return false
     }
     
-    /// Update an existing category
-    func updateCategory(id: UUID, name: String?, colorHex: String?) -> Bool {
+    /// Update an existing category: name, color, icon, and/or note
+    func updateCategory(id: UUID,
+                        name: String? = nil,
+                        colorHex: String? = nil,
+                        icon: String? = nil,
+                        note: String? = nil) -> Bool {
         guard id != UUID() else { return false }
-        
-        // Optimistic UI update for better responsiveness
-        if let name = name, let colorHex = colorHex {
-            updateUIModelDirectly(id: id, name: name, colorHex: colorHex)
+
+        // Optimistic UI update for name and color; icon/note refresh via data reload
+        if let index = categoryModels.firstIndex(where: { $0.id == id }) {
+            let old = categoryModels[index]
+            let updatedName = name ?? old.name
+            let updatedColor = colorHex ?? old.colorHex
+            // Keep existing icon and note until reload
+            updateUIModelDirectly(id: id,
+                                  name: updatedName,
+                                  colorHex: updatedColor,
+                                  icon: old.icon,
+                                  note: old.note)
         }
-        
-        // Perform the actual update (with notification that will trigger refresh)
-        let result = dataController.updateCategory(id: id, name: name, colorHex: colorHex)
-        
-        // No need for manual refresh - will be handled by notification system
+
+        // Perform the actual update
+        let result = dataController.updateCategory(id: id,
+                                                  name: name,
+                                                  colorHex: colorHex,
+                                                  icon: icon,
+                                                  note: note)
         return result
     }
     
     /// Direct UI update without waiting for Core Data
-    private func updateUIModelDirectly(id: UUID, name: String, colorHex: String) {
+    private func updateUIModelDirectly(id: UUID,
+                                       name: String,
+                                       colorHex: String,
+                                       icon: String,
+                                       note: String) {
         DispatchQueue.main.async {
             if let index = self.categoryModels.firstIndex(where: { $0.id == id }) {
                 let oldModel = self.categoryModels[index]
                 let updatedModel = CategoryUIModel(
-                    id: id, name: name, colorHex: colorHex, taskCount: oldModel.taskCount
+                    id: id,
+                    name: name,
+                    colorHex: colorHex,
+                    taskCount: oldModel.taskCount,
+                    icon: icon,
+                    note: note
                 )
                 self.categoryModels[index] = updatedModel
             }
@@ -224,11 +263,19 @@ class CategoryViewModel: ObservableObject {
 
 // Helper extension for creating CategoryUIModel directly
 extension CategoryUIModel {
-    init(id: UUID, name: String, colorHex: String, taskCount: Int) {
+    /// Initialize directly with all UI properties; icon and note default to empty
+    init(id: UUID,
+         name: String,
+         colorHex: String,
+         taskCount: Int,
+         icon: String = "",
+         note: String = "") {
         self.id = id
         self.name = name
         self.colorHex = colorHex
         self.taskCount = taskCount
+        self.icon = icon
+        self.note = note
     }
 }
 

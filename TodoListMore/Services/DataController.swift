@@ -444,7 +444,8 @@ class DataController: ObservableObject {
     
     // MARK: - Category Operations
     
-    func addCategory(name: String, colorHex: String) -> NSManagedObject? {
+    /// Create a new category with optional icon and note
+    func addCategory(name: String, colorHex: String, icon: String? = nil, note: String? = nil) -> NSManagedObject? {
         let context = container.viewContext
         
         let category = NSEntityDescription.insertNewObject(forEntityName: "Category", into: context)
@@ -453,6 +454,12 @@ class DataController: ObservableObject {
         category.setValue(categoryId, forKey: "id")
         category.setValue(name, forKey: "name")
         category.setValue(colorHex, forKey: "colorHex")
+        if let icon = icon {
+            category.setValue(icon, forKey: "icon")
+        }
+        if let note = note {
+            category.setValue(note, forKey: "note")
+        }
         
         // Save with specific notification
         save(notificationName: .categoriesDidChange, userInfo: ["categoryId": categoryId])
@@ -467,7 +474,12 @@ class DataController: ObservableObject {
         return context
     }()
     
-    func updateCategory(id: UUID, name: String? = nil, colorHex: String? = nil) -> Bool {
+    /// Update existing category fields: name, colorHex, icon, and note
+    func updateCategory(id: UUID,
+                        name: String? = nil,
+                        colorHex: String? = nil,
+                        icon: String? = nil,
+                        note: String? = nil) -> Bool {
         // Create a local completion indicator
         let completion = CompletionIndicator()
         
@@ -495,9 +507,14 @@ class DataController: ObservableObject {
                 if let name = name {
                     category.name = name
                 }
-                
                 if let colorHex = colorHex {
                     category.colorHex = colorHex
+                }
+                if let icon = icon {
+                    category.setValue(icon, forKey: "icon")
+                }
+                if let note = note {
+                    category.setValue(note, forKey: "note")
                 }
                 
                 // Save in background context

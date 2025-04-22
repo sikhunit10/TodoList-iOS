@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512px" height="512px" viewBox="0 0 512 512" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Widget Icon</title>
+    <g id="Widget-Icon" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <!-- Phone outline -->
+        <rect id="PhoneOutline" stroke="#FFFFFF" stroke-width="16" x="136" y="32" width="240" height="448" rx="32"></rect>
+        
+        <!-- Home indicator line -->
+        <line x1="216" y1="440" x2="296" y2="440" id="HomeIndicator" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"></line>
+        
+        <!-- Widgets -->
+        <rect id="Widget1" fill="#FFFFFF" x="156" y="72" width="96" height="96" rx="16"></rect>
+        <rect id="Widget2" fill="#FFFFFF" x="260" y="72" width="96" height="96" rx="16"></rect>
+        <rect id="Widget3" fill="#FFFFFF" x="156" y="176" width="96" height="96" rx="16"></rect>
+        
+        <!-- Task widget with checkboxes -->
+        <rect id="TaskWidget" fill="#5D4EFF" x="260" y="176" width="96" height="200" rx="16"></rect>
+        
+        <!-- Task items in widget -->
+        <circle id="Checkbox1" stroke="#FFFFFF" stroke-width="4" cx="280" cy="212" r="8"></circle>
+        <line x1="296" y1="212" x2="336" y2="212" id="TaskLine1" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"></line>
+        
+        <circle id="Checkbox2" stroke="#FFFFFF" stroke-width="4" cx="280" cy="244" r="8"></circle>
+        <circle id="CheckboxFill" fill="#FFFFFF" cx="280" cy="244" r="4"></circle>
+        <line x1="296" y1="244" x2="336" y2="244" id="TaskLine2" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"></line>
+        
+        <circle id="Checkbox3" stroke="#FFFFFF" stroke-width="4" cx="280" cy="276" r="8"></circle>
+        <line x1="296" y1="276" x2="336" y2="276" id="TaskLine3" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"></line>
+        
+        <circle id="Checkbox4" stroke="#FFFFFF" stroke-width="4" cx="280" cy="308" r="8"></circle>
+        <line x1="296" y1="308" x2="336" y2="308" id="TaskLine4" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"></line>
+        
+        <!-- Additional widgets -->
+        <rect id="Widget5" fill="#FFFFFF" x="156" y="280" width="96" height="96" rx="16"></rect>
+    </g>
+</svg>

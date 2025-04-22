@@ -103,10 +103,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 }
 
-// Add notification names for task interactions
+// Add notification names for app interactions
 extension Notification.Name {
     static let didTapTaskNotification = Notification.Name("didTapTaskNotification")
     static let openTaskDetail = Notification.Name("openTaskDetail")
+    static let onboardingCompleted = Notification.Name("onboardingCompleted")
 }
 
 @main
@@ -195,46 +196,81 @@ struct TodoListMoreApp: App {
         }
     }
     
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @State private var showOnboarding = false
+    
+    // Listen to onboarding completion event
+    private let onboardingCompletionPublisher = NotificationCenter.default.publisher(for: .onboardingCompleted)
+    
     var body: some Scene {
         WindowGroup {
-            ContentView(
-                tabSelection: $tabSelection, 
-                showNewTaskSheet: $showNewTaskSheet
-            )
-            .environment(\.managedObjectContext, dataController.container.viewContext)
-            .environmentObject(dataController)
-            .environmentObject(deepLinkManager)
-            .onAppear {
-                // Handle any pending notifications when the app starts
-                UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
-                    if notifications.count > 0 {
-                        print("App launched with \(notifications.count) delivered notifications")
+            ZStack {
+                ContentView(
+                    tabSelection: $tabSelection, 
+                    showNewTaskSheet: $showNewTaskSheet
+                )
+                .environment(\.managedObjectContext, dataController.container.viewContext)
+                .environmentObject(dataController)
+                .environmentObject(deepLinkManager)
+                .onAppear {
+                    // Check if we need to show onboarding
+                    if !hasCompletedOnboarding {
+                        showOnboarding = true
                     }
+                    
+                    // Handle any pending notifications when the app starts
+                    UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
+                        if notifications.count > 0 {
+                            print("App launched with \(notifications.count) delivered notifications")
+                        }
+                    }
+                }
+                .onOpenURL { url in
+                    // Handle deep links from widgets
+                    print("Received deep link: \(url)")
+                    deepLinkManager.handle(url: url)
+                    
+                    // Process the deep link and update UI accordingly
+                    if let deepLink = DeepLink(url: url) {
+                        switch deepLink {
+                        case .today:
+                            tabSelection = 0 // Tasks tab
+                            // Refresh widgets when navigating from widget
+                            WidgetCenter.shared.reloadAllTimelines()
+                        case .priority:
+                            tabSelection = 0 // Tasks tab
+                            // Refresh widgets when navigating from widget
+                            WidgetCenter.shared.reloadAllTimelines()
+                        case .newTask:
+                            tabSelection = 0 // Tasks tab
+                            showNewTaskSheet = true
+                            // Refresh widgets when creating a new task
+                            WidgetCenter.shared.reloadAllTimelines()
+                        }
+                    }
+                }
+                
+                // Conditionally show onboarding as an interactive overlay
+                if showOnboarding {
+                    OnboardingView(tabSelection: $tabSelection)
+                        .transition(.opacity)
+                        .zIndex(1) // Ensure it's on top
                 }
             }
-            .onOpenURL { url in
-                // Handle deep links from widgets
-                print("Received deep link: \(url)")
-                deepLinkManager.handle(url: url)
-                
-                // Process the deep link and update UI accordingly
-                if let deepLink = DeepLink(url: url) {
-                    switch deepLink {
-                    case .today:
-                        tabSelection = 0 // Tasks tab
-                        // Refresh widgets when navigating from widget
-                        WidgetCenter.shared.reloadAllTimelines()
-                    case .priority:
-                        tabSelection = 0 // Tasks tab
-                        // Refresh widgets when navigating from widget
-                        WidgetCenter.shared.reloadAllTimelines()
-                    case .newTask:
-                        tabSelection = 0 // Tasks tab
-                        showNewTaskSheet = true
-                        // Refresh widgets when creating a new task
-                        WidgetCenter.shared.reloadAllTimelines()
-                    }
+            .onReceive(onboardingCompletionPublisher) { _ in
+                // Hide the onboarding view when completed
+                withAnimation {
+                    showOnboarding = false
                 }
+                
+                // Log onboarding completion
+                print("Onboarding completed")
+                
+                // Track onboarding completion as app event
+                appDelegate.amplitude.track(
+                    eventType: "app_onboarding_complete",
+                    eventProperties: ["days_since_install": appDelegate.daysSinceInstall()]
+                )
             }
         }
     }
