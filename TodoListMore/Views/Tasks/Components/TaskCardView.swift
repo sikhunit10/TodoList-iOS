@@ -215,13 +215,13 @@ struct TaskCardHeaderView: View {
         
         // Show a snippet of the description if available
         if !description.isEmpty {
-            Text(description)
+            Text(description.linkified())
                 .font(.system(size: 14))
-                .foregroundColor(.secondary)
-                .lineLimit(3) // Allow up to 3 lines for description
-                .padding(.vertical, 4) // Equal padding top and bottom
+                .lineLimit(3)
+                .padding(.vertical, 4)
                 .padding(.horizontal, 16)
-                .padding(.leading, 46) // Align with title text
+                .padding(.leading, 46)
+                .onOpenURL { UIApplication.shared.open($0) }
         }
     }
 }

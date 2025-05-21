@@ -49,8 +49,8 @@ struct TaskDetailView: View {
             // Task description
             if let description = task.taskDescription, !description.isEmpty {
                 Section {
-                    Text(description)
-                        .foregroundColor(.primary)
+                    Text(description.linkified())
+                        .onOpenURL { UIApplication.shared.open($0) }
                 }
             }
             
