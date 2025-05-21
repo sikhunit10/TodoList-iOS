@@ -49,8 +49,13 @@ struct TaskDetailView: View {
             // Task description
             if let description = task.taskDescription, !description.isEmpty {
                 Section {
-                    Text(description)
-                        .foregroundColor(.primary)
+                    if let url = description.firstURL() {
+                        Link(description, destination: url)
+                            .foregroundColor(.blue)
+                    } else {
+                        Text(description)
+                            .foregroundColor(.primary)
+                    }
                 }
             }
             

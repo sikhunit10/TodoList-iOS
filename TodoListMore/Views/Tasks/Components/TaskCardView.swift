@@ -215,13 +215,23 @@ struct TaskCardHeaderView: View {
         
         // Show a snippet of the description if available
         if !description.isEmpty {
-            Text(description)
-                .font(.system(size: 14))
-                .foregroundColor(.secondary)
-                .lineLimit(3) // Allow up to 3 lines for description
-                .padding(.vertical, 4) // Equal padding top and bottom
-                .padding(.horizontal, 16)
-                .padding(.leading, 46) // Align with title text
+            if let url = description.firstURL() {
+                Link(description, destination: url)
+                    .font(.system(size: 14))
+                    .foregroundColor(.blue)
+                    .lineLimit(3)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 16)
+                    .padding(.leading, 46)
+            } else {
+                Text(description)
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                    .lineLimit(3)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 16)
+                    .padding(.leading, 46)
+            }
         }
     }
 }
