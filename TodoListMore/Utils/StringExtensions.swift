@@ -20,20 +20,21 @@ extension String {
             .first
     }
 
-    /// Return an `AttributedString` with URLs converted to tappable links.
+    /// Return an AttributedString where detected URLs become tappable links.
+    /// Text outside the URLs remains unstyled.
     func linkified() -> AttributedString {
-        var attributed = AttributedString(self)
-        guard let detector = try? NSDataDetector(
-            types: NSTextCheckingResult.CheckingType.link.rawValue
-        ) else { return attributed }
-
-        let nsRange = NSRange(startIndex..., in: self)
-        for match in detector.matches(in: self, options: [], range: nsRange) {
-            guard let url = match.url,
-                  let range = Range(match.range, in: self) else { continue }
-            attributed[range].link = url
-            attributed[range].foregroundColor = .blue
+        let attributed = NSMutableAttributedString(string: self)
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+            return AttributedString(attributed)
         }
-        return attributed
+
+        let nsRange = NSRange(location: 0, length: attributed.length)
+        detector.enumerateMatches(in: self, options: [], range: nsRange) { match, _, _ in
+            guard let match = match, let url = match.url else { return }
+            attributed.addAttribute(.link, value: url, range: match.range)
+            attributed.addAttribute(.foregroundColor, value: UIColor.blue, range: match.range)
+        }
+
+        return AttributedString(attributed)
     }
 }

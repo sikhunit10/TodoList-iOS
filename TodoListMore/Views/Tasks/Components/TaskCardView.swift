@@ -217,6 +217,7 @@ struct TaskCardHeaderView: View {
         if !description.isEmpty {
             Text(description.linkified())
                 .font(.system(size: 14))
+                .foregroundColor(.secondary)
                 .lineLimit(3)
                 .padding(.vertical, 4)
                 .padding(.horizontal, 16)
