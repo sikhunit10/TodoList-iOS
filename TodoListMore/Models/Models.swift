@@ -134,6 +134,39 @@ extension Task {
     }
 }
 
+// MARK: - Note Extensions
+extension Note {
+    var safeContent: String {
+        return content ?? ""
+    }
+    
+    var safeTags: String {
+        return tags ?? ""
+    }
+    
+    var formattedDateCreated: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: dateCreated ?? Date())
+    }
+    
+    var formattedDateModified: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: dateModified ?? Date())
+    }
+    
+    var preview: String {
+        let content = safeContent
+        if content.count > 100 {
+            return String(content.prefix(100)) + "..."
+        }
+        return content
+    }
+}
+
 // MARK: - Category Extensions
 extension Category {
     // Convenience methods for Category entity
