@@ -71,6 +71,19 @@ struct ContentView: View {
             }
             .tag(1)
             
+            // Brain Dump tab - white navigation bar with inline title
+            NavigationStack {
+                BrainDumpView()
+                    .navigationTitle("Brain Dump")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbarBackground(.visible, for: .navigationBar)
+                    .toolbarBackground(Color.white, for: .navigationBar)
+            }
+            .tabItem {
+                Label("Brain Dump", systemImage: "brain.head.profile")
+            }
+            .tag(2)
+            
             // Settings tab - gray navigation bar with large title
             NavigationStack {
                 SettingsView(tabSelection: $tabSelection)
@@ -82,7 +95,7 @@ struct ContentView: View {
             .tabItem {
                 Label("Settings", systemImage: "gearshape.fill")
             }
-            .tag(2)
+            .tag(3)
         }
         .tint(colorScheme == .dark ? accentDark : accentLight)
         .onReceive(NotificationCenter.default.publisher(for: .didTapTaskNotification)) { notification in

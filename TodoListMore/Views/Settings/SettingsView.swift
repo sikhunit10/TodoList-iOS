@@ -30,7 +30,7 @@ struct SettingsView: View {
     
     // Default initializer for previews
     init() {
-        self._tabSelection = .constant(2)
+        self._tabSelection = .constant(3)
     }
     
     // Initializer with tab binding
