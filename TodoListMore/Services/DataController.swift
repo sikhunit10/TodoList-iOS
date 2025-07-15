@@ -14,6 +14,7 @@ extension Notification.Name {
     static let dataDidChange = Notification.Name("dataDidChange")
     static let tasksDidChange = Notification.Name("tasksDidChange")
     static let categoriesDidChange = Notification.Name("categoriesDidChange")
+    static let notesDidChange = Notification.Name("notesDidChange")
 }
 
 class DataController: ObservableObject {
@@ -591,6 +592,70 @@ class DataController: ObservableObject {
             }
             
             print("Warning: Timed out waiting for category update")
+            return false
+        }
+    }
+    
+    // MARK: - Note Operations
+    
+    func addNote(content: String, tags: String = "") -> NSManagedObject? {
+        let context = container.viewContext
+        
+        let note = NSEntityDescription.insertNewObject(forEntityName: "Note", into: context)
+        let noteId = UUID()
+        let now = Date()
+        
+        note.setValue(noteId, forKey: "id")
+        note.setValue(content, forKey: "content")
+        note.setValue(tags, forKey: "tags")
+        note.setValue(now, forKey: "dateCreated")
+        note.setValue(now, forKey: "dateModified")
+        
+        save(notificationName: .notesDidChange, userInfo: ["noteId": noteId])
+        return note
+    }
+    
+    func updateNote(id: UUID, content: String? = nil, tags: String? = nil) -> Bool {
+        let context = container.viewContext
+        let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "Note")
+        fetchRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        
+        do {
+            let notes = try context.fetch(fetchRequest)
+            guard let note = notes.first else { return false }
+            
+            if let content = content {
+                note.setValue(content, forKey: "content")
+            }
+            
+            if let tags = tags {
+                note.setValue(tags, forKey: "tags")
+            }
+            
+            note.setValue(Date(), forKey: "dateModified")
+            
+            save(notificationName: .notesDidChange, userInfo: ["noteId": id])
+            return true
+        } catch {
+            print("Error updating note: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
+    func deleteNote(id: UUID) -> Bool {
+        let context = container.viewContext
+        let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "Note")
+        fetchRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        
+        do {
+            let notes = try context.fetch(fetchRequest)
+            guard let note = notes.first else { return false }
+            
+            context.delete(note)
+            save(notificationName: .notesDidChange, userInfo: ["noteId": id, "deleted": true])
+            return true
+        } catch {
+            print("Error deleting note: \(error.localizedDescription)")
             return false
         }
     }
