@@ -15,6 +15,7 @@ extension Notification.Name {
     static let tasksDidChange = Notification.Name("tasksDidChange")
     static let categoriesDidChange = Notification.Name("categoriesDidChange")
     static let notesDidChange = Notification.Name("notesDidChange")
+    static let templatesDidChange = Notification.Name("templatesDidChange")
 }
 
 class DataController: ObservableObject {
@@ -95,6 +96,11 @@ class DataController: ObservableObject {
                 } else {
                     // Print instructions for adding reminder attributes
                     migrationHelper.printMigrationInstructions()
+                }
+                
+                // Initialize built-in templates (do this after initialization is complete)
+                DispatchQueue.main.async {
+                    TemplateManager.shared.createBuiltInTemplates()
                 }
             }
         }
@@ -656,6 +662,213 @@ class DataController: ObservableObject {
             return true
         } catch {
             print("Error deleting note: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
+    // MARK: - Template Operations
+    
+    func createTemplate(name: String, description: String = "", category: String = "General", icon: String = "list.bullet", tasks: [TemplateTaskData], isBuiltIn: Bool = false) -> NSManagedObject? {
+        let context = container.viewContext
+        
+        let template = NSEntityDescription.insertNewObject(forEntityName: "TaskTemplate", into: context)
+        let templateId = UUID()
+        let now = Date()
+        
+        template.setValue(templateId, forKey: "id")
+        template.setValue(name, forKey: "name")
+        template.setValue(description, forKey: "templateDescription")
+        template.setValue(category, forKey: "category")
+        template.setValue(icon, forKey: "icon")
+        template.setValue(isBuiltIn, forKey: "isBuiltIn")
+        template.setValue(now, forKey: "dateCreated")
+        template.setValue(now, forKey: "dateModified")
+        
+        print("DEBUG: Creating template '\(name)' with \(tasks.count) tasks")
+        
+        // Create template tasks
+        for (index, taskData) in tasks.enumerated() {
+            let templateTask = NSEntityDescription.insertNewObject(forEntityName: "TemplateTask", into: context)
+            templateTask.setValue(UUID(), forKey: "id")
+            templateTask.setValue(taskData.title, forKey: "title")
+            templateTask.setValue(taskData.description, forKey: "taskDescription")
+            templateTask.setValue(taskData.priority.rawValue, forKey: "priority")
+            templateTask.setValue(taskData.dueDateOffset, forKey: "dueDateOffset")
+            templateTask.setValue(taskData.categoryName, forKey: "categoryName")
+            templateTask.setValue(Int16(index), forKey: "orderIndex")
+            templateTask.setValue(template, forKey: "template")
+            
+            print("DEBUG: Created template task: \(taskData.title) (priority: \(taskData.priority.rawValue), offset: \(taskData.dueDateOffset))")
+        }
+        
+        save(notificationName: .templatesDidChange, userInfo: ["templateId": templateId])
+        print("DEBUG: Template '\(name)' created with ID: \(templateId)")
+        return template
+    }
+    
+    func updateTemplate(id: UUID, name: String? = nil, description: String? = nil, category: String? = nil, icon: String? = nil, tasks: [TemplateTaskData]? = nil) -> Bool {
+        let context = container.viewContext
+        let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "TaskTemplate")
+        fetchRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        
+        do {
+            let templates = try context.fetch(fetchRequest)
+            guard let template = templates.first else { return false }
+            
+            if let name = name {
+                template.setValue(name, forKey: "name")
+            }
+            if let description = description {
+                template.setValue(description, forKey: "templateDescription")
+            }
+            if let category = category {
+                template.setValue(category, forKey: "category")
+            }
+            if let icon = icon {
+                template.setValue(icon, forKey: "icon")
+            }
+            
+            // Update tasks if provided
+            if let tasks = tasks {
+                // Remove existing template tasks
+                if let existingTasks = template.value(forKey: "templateTasks") as? Set<NSManagedObject> {
+                    for task in existingTasks {
+                        context.delete(task)
+                    }
+                }
+                
+                // Create new template tasks
+                for (index, taskData) in tasks.enumerated() {
+                    let templateTask = NSEntityDescription.insertNewObject(forEntityName: "TemplateTask", into: context)
+                    templateTask.setValue(UUID(), forKey: "id")
+                    templateTask.setValue(taskData.title, forKey: "title")
+                    templateTask.setValue(taskData.description, forKey: "taskDescription")
+                    templateTask.setValue(taskData.priority.rawValue, forKey: "priority")
+                    templateTask.setValue(taskData.dueDateOffset, forKey: "dueDateOffset")
+                    templateTask.setValue(taskData.categoryName, forKey: "categoryName")
+                    templateTask.setValue(Int16(index), forKey: "orderIndex")
+                    templateTask.setValue(template, forKey: "template")
+                }
+            }
+            
+            template.setValue(Date(), forKey: "dateModified")
+            save(notificationName: .templatesDidChange, userInfo: ["templateId": id])
+            return true
+        } catch {
+            print("Error updating template: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
+    func deleteTemplate(id: UUID) -> Bool {
+        let context = container.viewContext
+        let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "TaskTemplate")
+        fetchRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        
+        do {
+            let templates = try context.fetch(fetchRequest)
+            guard let template = templates.first else { return false }
+            
+            context.delete(template)
+            save(notificationName: .templatesDidChange, userInfo: ["templateId": id, "deleted": true])
+            return true
+        } catch {
+            print("Error deleting template: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
+    func applyTemplate(templateId: UUID, baseDate: Date = Date()) -> Bool {
+        print("DEBUG: Starting template application for ID: \(templateId)")
+        let context = container.viewContext
+        let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "TaskTemplate")
+        fetchRequest.predicate = NSPredicate(format: "id == %@", templateId as CVarArg)
+        
+        do {
+            let templates = try context.fetch(fetchRequest)
+            print("DEBUG: Found \(templates.count) templates")
+            guard let template = templates.first else { 
+                print("DEBUG: No template found with ID: \(templateId)")
+                return false 
+            }
+            
+            let templateName = template.value(forKey: "name") as? String ?? "Unknown"
+            print("DEBUG: Found template: \(templateName)")
+            
+            // Get template tasks
+            let templateTasksRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "TemplateTask")
+            templateTasksRequest.predicate = NSPredicate(format: "template == %@", template)
+            templateTasksRequest.sortDescriptors = [NSSortDescriptor(key: "orderIndex", ascending: true)]
+            
+            let templateTasks = try context.fetch(templateTasksRequest)
+            print("DEBUG: Found \(templateTasks.count) template tasks")
+            
+            if templateTasks.isEmpty {
+                print("DEBUG: No template tasks found for template: \(templateName)")
+                return false
+            }
+            
+            // Track template application
+            let appDelegate = UIApplication.shared.delegate as? AppDelegate
+            appDelegate?.amplitude.track(
+                eventType: "template_applied",
+                eventProperties: [
+                    "template_id": templateId.uuidString,
+                    "template_name": templateName,
+                    "task_count": templateTasks.count
+                ]
+            )
+            
+            var successCount = 0
+            // Create tasks from template
+            for (index, templateTask) in templateTasks.enumerated() {
+                let title = templateTask.value(forKey: "title") as? String ?? ""
+                let description = templateTask.value(forKey: "taskDescription") as? String ?? ""
+                let priority = templateTask.value(forKey: "priority") as? Int16 ?? 1
+                let dueDateOffset = templateTask.value(forKey: "dueDateOffset") as? Int32 ?? 0
+                let categoryName = templateTask.value(forKey: "categoryName") as? String ?? ""
+                
+                print("DEBUG: Processing task \(index + 1): \(title) (priority: \(priority), offset: \(dueDateOffset))")
+                
+                // Calculate due date
+                var dueDate: Date? = nil
+                if dueDateOffset != 0 {
+                    dueDate = Calendar.current.date(byAdding: .day, value: Int(dueDateOffset), to: baseDate)
+                    print("DEBUG: Calculated due date: \(dueDate?.description ?? "nil")")
+                }
+                
+                // Find category by name
+                var categoryId: UUID? = nil
+                if !categoryName.isEmpty {
+                    let categoryRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "Category")
+                    categoryRequest.predicate = NSPredicate(format: "name == %@", categoryName)
+                    if let category = try? context.fetch(categoryRequest).first {
+                        categoryId = category.value(forKey: "id") as? UUID
+                        print("DEBUG: Found category: \(categoryName) with ID: \(categoryId?.uuidString ?? "nil")")
+                    } else {
+                        print("DEBUG: Category not found: \(categoryName)")
+                    }
+                }
+                
+                // Create the task
+                if let newTask = addTask(
+                    title: title,
+                    description: description,
+                    dueDate: dueDate,
+                    priority: priority,
+                    categoryId: categoryId
+                ) {
+                    successCount += 1
+                    print("DEBUG: Successfully created task: \(title)")
+                } else {
+                    print("DEBUG: Failed to create task: \(title)")
+                }
+            }
+            
+            print("DEBUG: Successfully created \(successCount) out of \(templateTasks.count) tasks")
+            return successCount > 0
+        } catch {
+            print("ERROR applying template: \(error.localizedDescription)")
             return false
         }
     }

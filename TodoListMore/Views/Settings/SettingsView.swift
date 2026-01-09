@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var alertTitle = "Error"
     @State private var alertMessage = ""
     @State private var showOnboarding = false
+    @State private var showingTemplateLibrary = false
     @Binding var tabSelection: Int
     
     @AppStorage("completedTasksVisible") private var completedTasksVisible = true
@@ -82,6 +83,9 @@ struct SettingsView: View {
             // APPEARANCE SECTION
             AppearanceSection
             
+            // TEMPLATES SECTION
+            TemplatesSection
+            
             // DATA MANAGEMENT SECTION
             DataManagementSection
             
@@ -98,6 +102,20 @@ struct SettingsView: View {
             Text("Appearance")
         } footer: {
             Text("When disabled, completed tasks will be hidden from the task list.")
+        }
+    }
+    
+    private var TemplatesSection: some View {
+        Section {
+            Button {
+                showingTemplateLibrary = true
+            } label: {
+                Label("Manage Templates", systemImage: "doc.text")
+            }
+        } header: {
+            Text("Templates")
+        } footer: {
+            Text("Create and manage task templates for common workflows.")
         }
     }
     
@@ -166,6 +184,10 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showOnboarding) {
             OnboardingView(tabSelection: $tabSelection)
+        }
+        .sheet(isPresented: $showingTemplateLibrary) {
+            TemplateLibraryView()
+                .environmentObject(dataController)
         }
     }
     

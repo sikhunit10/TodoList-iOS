@@ -33,32 +33,28 @@ struct ContentView: View {
         self._showNewTaskSheet = showNewTaskSheet
     }
     
-    // Define app accent colors
-    private let accentLight = Color(hex: "#5D4EFF")
-    private let accentDark = Color(hex: "#6F61FF")
-    
     var body: some View {
         TabView(selection: $tabSelection) {
-            // Tasks tab - white navigation bar with inline title
+            // Tasks tab - modern navigation with gradient accent
             NavigationStack {
                 TaskListView(highlightedTaskId: $highlightedTaskId)
                     .navigationTitle("Tasks")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbarBackground(.visible, for: .navigationBar)
-                    .toolbarBackground(Color.white, for: .navigationBar) // Force white background
+                    .toolbarBackground(AppTheme.appBackground, for: .navigationBar)
                     .sheet(isPresented: $showNewTaskSheet) {
                         TaskFormView(mode: .add) {
                             showNewTaskSheet = false
                         }
                     }
             }
-            .background(Color.white) // Force white for any transparent areas
+            .background(AppTheme.appBackground)
             .tabItem {
-                Label("Tasks", systemImage: "checklist.checked")
+                Label("Tasks", systemImage: "checklist")
             }
             .tag(0)
             
-            // Categories tab - gray navigation bar with large title
+            // Categories tab - modern grouped style
             NavigationStack {
                 CategoryListView()
                     .navigationTitle("Categories")
@@ -67,24 +63,24 @@ struct ContentView: View {
                     .toolbarBackground(Color(.systemGroupedBackground), for: .navigationBar)
             }
             .tabItem {
-                Label("Categories", systemImage: "folder.fill")
+                Label("Categories", systemImage: "folder")
             }
             .tag(1)
-            
-            // Brain Dump tab - white navigation bar with inline title
+
+            // Brain Dump tab - modern clean style
             NavigationStack {
                 BrainDumpView()
                     .navigationTitle("Brain Dump")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbarBackground(.visible, for: .navigationBar)
-                    .toolbarBackground(Color.white, for: .navigationBar)
+                    .toolbarBackground(AppTheme.appBackground, for: .navigationBar)
             }
             .tabItem {
-                Label("Brain Dump", systemImage: "brain.head.profile")
+                Label("Brain Dump", systemImage: "lightbulb")
             }
             .tag(2)
-            
-            // Settings tab - gray navigation bar with large title
+
+            // Settings tab - modern grouped style
             NavigationStack {
                 SettingsView(tabSelection: $tabSelection)
                     .navigationTitle("Settings")
@@ -93,11 +89,17 @@ struct ContentView: View {
                     .toolbarBackground(Color(.systemGroupedBackground), for: .navigationBar)
             }
             .tabItem {
-                Label("Settings", systemImage: "gearshape.fill")
+                Label("Settings", systemImage: "gearshape")
             }
             .tag(3)
         }
-        .tint(colorScheme == .dark ? accentDark : accentLight)
+        .tint(
+            LinearGradient(
+                colors: [AppTheme.accentColor, AppTheme.accentColorDark],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        )
         .onReceive(NotificationCenter.default.publisher(for: .didTapTaskNotification)) { notification in
             if let taskId = notification.userInfo?["taskId"] as? UUID {
                 print("\(tag): Received notification for task: \(taskId)")
@@ -122,76 +124,52 @@ struct ContentView: View {
             // Track screen view
             let appDelegate = UIApplication.shared.delegate as? AppDelegate
             appDelegate?.amplitude.track(eventType: "view_main_screen")
-            
-            // Enhanced iOS system appearance
-            let appearance = UITabBarAppearance()
-            appearance.configureWithDefaultBackground()
-            
-            // Apply blur effect for modern look
+
+            // Modern tab bar appearance with blur
+            let tabBarAppearance = UITabBarAppearance()
+            tabBarAppearance.configureWithDefaultBackground()
+            tabBarAppearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
+
+            // Modern tab bar styling
+            UITabBar.appearance().standardAppearance = tabBarAppearance
+            UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
+            UITabBar.appearance().unselectedItemTintColor = UIColor(AppTheme.secondaryText)
+
             if #available(iOS 15.0, *) {
-                appearance.backgroundEffect = UIBlurEffect(style: .systemThinMaterial)
-            }
-            
-            // Enhance tab bar appearance
-            UITabBar.appearance().standardAppearance = appearance
-            UITabBar.appearance().unselectedItemTintColor = UIColor.systemGray
-            
-            if #available(iOS 15.0, *) {
-                UITabBar.appearance().scrollEdgeAppearance = appearance
-                
-                // Create a more compact navigation bar appearance
-                // Create two distinct navigation bar appearances
-                
-                // 1. Task list appearance - white background, consistent height
-                let taskNavigationAppearance = UINavigationBarAppearance()
-                taskNavigationAppearance.configureWithOpaqueBackground()
-                taskNavigationAppearance.backgroundColor = UIColor.systemBackground // White background
-                taskNavigationAppearance.shadowColor = .clear
-                taskNavigationAppearance.shadowImage = UIImage() // Remove bottom line
-                
-                // 2. Categories and Settings appearance - gray background with large titles
-                let groupedNavigationAppearance = UINavigationBarAppearance()
-                groupedNavigationAppearance.configureWithOpaqueBackground()
-                groupedNavigationAppearance.backgroundColor = UIColor.systemGroupedBackground // Gray background
-                groupedNavigationAppearance.shadowColor = .clear
-                groupedNavigationAppearance.shadowImage = UIImage() // Remove bottom line
-                
-                // Set font sizes for consistent height
-                let regularTitleTextAttributes = [
-                    NSAttributedString.Key.font: UIFont.systemFont(ofSize: 17, weight: .semibold)
+                // Modern navigation bar appearance
+                let navigationAppearance = UINavigationBarAppearance()
+                navigationAppearance.configureWithOpaqueBackground()
+                navigationAppearance.backgroundColor = UIColor(AppTheme.appBackground)
+                navigationAppearance.shadowColor = .clear
+                navigationAppearance.shadowImage = UIImage()
+
+                // Modern typography
+                let titleTextAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 18, weight: .bold),
+                    .foregroundColor: UIColor(AppTheme.primaryText)
                 ]
-                
-                let largeTitleTextAttributes = [
-                    NSAttributedString.Key.font: UIFont.systemFont(ofSize: 34, weight: .bold)
+
+                let largeTitleTextAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 34, weight: .bold),
+                    .foregroundColor: UIColor(AppTheme.primaryText)
                 ]
-                
-                // Apply font settings to both appearances
-                taskNavigationAppearance.titleTextAttributes = regularTitleTextAttributes
-                groupedNavigationAppearance.titleTextAttributes = regularTitleTextAttributes
-                
-                taskNavigationAppearance.largeTitleTextAttributes = largeTitleTextAttributes
-                groupedNavigationAppearance.largeTitleTextAttributes = largeTitleTextAttributes
-                
-                // Set default appearances for fallback
-                UINavigationBar.appearance().standardAppearance = taskNavigationAppearance
-                UINavigationBar.appearance().compactAppearance = taskNavigationAppearance
-                UINavigationBar.appearance().scrollEdgeAppearance = groupedNavigationAppearance
-                
-                // Additional settings to ensure absolutely no bottom line/border
-                UINavigationBar.appearance().setBackgroundImage(UIImage(), for: .default)
-                UINavigationBar.appearance().shadowImage = UIImage()
-                
-                // Force update - critical for removing bottom borders
-                let navBars = UINavigationBar.appearance()
-                navBars.isTranslucent = true
-                navBars.tintColor = UIColor(Color(hex: "#5D4EFF"))
-                
-                // Direct appearance approach - more reliable
-                UINavigationBar.appearance().clipsToBounds = true // This helps prevent the hairline from showing
-                
-                // Make the search bar more compact
-                UITextField.appearance(whenContainedInInstancesOf: [UISearchBar.self]).defaultTextAttributes =
-                    [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 14)]
+
+                navigationAppearance.titleTextAttributes = titleTextAttributes
+                navigationAppearance.largeTitleTextAttributes = largeTitleTextAttributes
+
+                // Apply to all navigation bars
+                UINavigationBar.appearance().standardAppearance = navigationAppearance
+                UINavigationBar.appearance().compactAppearance = navigationAppearance
+                UINavigationBar.appearance().scrollEdgeAppearance = navigationAppearance
+
+                // Modern accent color for navigation
+                UINavigationBar.appearance().tintColor = UIColor(AppTheme.accentColor)
+
+                // Modern search bar styling
+                UITextField.appearance(whenContainedInInstancesOf: [UISearchBar.self]).defaultTextAttributes = [
+                    .font: UIFont.systemFont(ofSize: 15, weight: .medium),
+                    .foregroundColor: UIColor(AppTheme.primaryText)
+                ]
             }
         }
     }

@@ -8,6 +8,24 @@
 import Foundation
 import SwiftUI
 
+// MARK: - Template Data Structures
+
+struct TemplateTaskData {
+    let title: String
+    let description: String
+    let priority: TaskPriority
+    let dueDateOffset: Int32 // Days from base date (0 = no due date, 1 = tomorrow, -1 = yesterday)
+    let categoryName: String
+    
+    init(title: String, description: String = "", priority: TaskPriority = .medium, dueDateOffset: Int32 = 0, categoryName: String = "") {
+        self.title = title
+        self.description = description
+        self.priority = priority
+        self.dueDateOffset = dueDateOffset
+        self.categoryName = categoryName
+    }
+}
+
 /// Priority levels for tasks
 enum TaskPriority: Int16, CaseIterable, Identifiable {
     case low = 1

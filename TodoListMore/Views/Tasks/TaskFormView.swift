@@ -36,6 +36,9 @@ struct TaskFormView: View {
     @State private var customReminderMinutes: Double = 30
     @State private var showCustomTimePicker = false
     
+    // Template-related state
+    @State private var showingTemplateLibrary = false
+    
     // Form mode (add new or edit existing task)
     let mode: FormMode
     
@@ -73,16 +76,28 @@ struct TaskFormView: View {
                         
                         Spacer()
                         
-                        Button {
-                            let success = saveTask()
-                            onSave?()
-                            dismiss()
-                        } label: {
-                            Text("Save")
-                                .fontWeight(.semibold)
-                                .foregroundColor(title.isEmpty ? .gray : .accentColor)
+                        HStack(spacing: 16) {
+                            if isAddMode {
+                                Button {
+                                    showingTemplateLibrary = true
+                                } label: {
+                                    Image(systemName: "doc.text")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(.accentColor)
+                                }
+                            }
+                            
+                            Button {
+                                let success = saveTask()
+                                onSave?()
+                                dismiss()
+                            } label: {
+                                Text("Save")
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(title.isEmpty ? .gray : .accentColor)
+                            }
+                            .disabled(title.isEmpty)
                         }
-                        .disabled(title.isEmpty)
                     }
                     .padding(.horizontal)
                     .padding(.top, 12)
@@ -551,6 +566,10 @@ struct TaskFormView: View {
             .onDisappear {
                 loadCategories()
             }
+        }
+        .sheet(isPresented: $showingTemplateLibrary) {
+            TemplateLibraryView()
+                .environmentObject(dataController)
         }
         .onAppear {
             // Initialize previousDate with the current dueDate

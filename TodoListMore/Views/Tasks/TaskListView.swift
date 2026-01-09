@@ -36,6 +36,9 @@ struct TaskListView: View {
     @State private var isEditMode = false
     @State private var selectedTaskIds = Set<UUID>()
     
+    // Template state
+    @State private var showingTemplateLibrary = false
+    
     // Define sort descriptors
     private static let sortDescriptors = [
         SortDescriptor(\Task.isCompleted, order: .forward),
@@ -94,7 +97,7 @@ struct TaskListView: View {
                 }
             }
         }
-        .toolbarBackground(.white, for: .navigationBar)
+        .toolbarBackground(AppTheme.appBackground, for: .navigationBar)
         .searchable(text: $searchText, prompt: "Search tasks")
         .onChange(of: searchText) { _ in
             updateFetchRequest()
@@ -102,15 +105,41 @@ struct TaskListView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                editButton
+                HStack(spacing: 12) {
+                    Button(action: {
+                        showingTemplateLibrary = true
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(AppTheme.accentColor.opacity(0.1))
+                                .frame(width: 36, height: 36)
+
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [AppTheme.accentColor, AppTheme.accentColorDark],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                        }
+                    }
+
+                    editButton
+                }
             }
         }
-        .background(Color.white)
+        .background(AppTheme.appBackground)
         .sheet(isPresented: $showingAddTask) {
             NavigationStack {
                 TaskFormView(mode: .add, onSave: { switchToAppropriateTabForNewTask() })
             }
             .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showingTemplateLibrary) {
+            TemplateLibraryView()
+                .environmentObject(dataController)
         }
         .sheet(item: $selectedTaskId) { taskId in
             NavigationStack {
@@ -218,27 +247,28 @@ struct TaskListView: View {
     
     // MARK: - View Components
     
-    // Filter header
+    // Filter header with modern styling
     var filterHeader: some View {
         Group {
             if !isEditMode {
-                // Regular filter tabs
+                // Modern filter tabs
                 SegmentedFilterView(selectedFilter: $selectedFilter)
                     .padding(.top, 0)
                     .padding(.bottom, 0)
-                    .background(Color.white)
+                    .background(AppTheme.appBackground)
                     .onChange(of: selectedFilter) { _ in
                         // Always use fresh date values when changing filters
                         updateFetchRequest(forceRefreshDates: true)
                     }
             } else {
-                // Edit mode header
+                // Modern edit mode header
                 VStack(spacing: 0) {
                     Divider()
-                    
+                        .background(AppTheme.borderColor)
+
                     HStack {
                         Button(action: {
-                            withAnimation {
+                            withAnimation(AppTheme.UI.springAnimation) {
                                 if selectedTaskIds.count == filteredTasks.count && !filteredTasks.isEmpty {
                                     selectedTaskIds.removeAll()
                                 } else {
@@ -246,48 +276,54 @@ struct TaskListView: View {
                                 }
                             }
                         }) {
-                            HStack(spacing: 5) {
-                                Image(systemName: selectedTaskIds.count == filteredTasks.count && !filteredTasks.isEmpty ? "minus.square" : "checkmark.square")
-                                    .font(.system(size: 15, weight: .medium))
+                            HStack(spacing: 6) {
+                                Image(systemName: selectedTaskIds.count == filteredTasks.count && !filteredTasks.isEmpty ? "minus.square.fill" : "checkmark.square")
+                                    .font(.system(size: 16, weight: .semibold))
                                 Text(selectedTaskIds.count == filteredTasks.count && !filteredTasks.isEmpty ? "Deselect All" : "Select All")
-                                    .font(.system(size: 15))
+                                    .font(.system(size: AppTheme.Typography.subheadline, weight: .medium))
                             }
-                            .foregroundColor(Color(hex: "#5D4EFF"))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [AppTheme.accentColor, AppTheme.accentColorDark],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
                         }
                         .disabled(filteredTasks.isEmpty)
-                        
+
                         Spacer()
-                        
+
                         if selectedTaskIds.count > 0 {
                             Text("\(selectedTaskIds.count) item\(selectedTaskIds.count > 1 ? "s" : "") selected")
-                                .font(.system(size: 15))
-                                .foregroundColor(.secondary)
+                                .font(.system(size: AppTheme.Typography.subheadline, weight: .medium))
+                                .foregroundColor(AppTheme.secondaryText)
                         }
-                        
+
                         Spacer()
-                        
+
                         Button(action: {
                             deleteSelectedTasks()
                         }) {
-                            HStack(spacing: 5) {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 15, weight: .medium))
+                            HStack(spacing: 6) {
+                                Image(systemName: "trash.fill")
+                                    .font(.system(size: 16, weight: .semibold))
                                 Text("Delete")
-                                    .font(.system(size: 15))
+                                    .font(.system(size: AppTheme.Typography.subheadline, weight: .medium))
                             }
-                            .foregroundColor(selectedTaskIds.isEmpty ? .gray : .red)
+                            .foregroundColor(selectedTaskIds.isEmpty ? AppTheme.tertiaryText : AppTheme.errorColor)
                         }
                         .disabled(selectedTaskIds.isEmpty)
                     }
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 14)
                 }
-                .background(Color.white)
+                .background(AppTheme.appBackground)
             }
         }
     }
     
-    // Task list
+    // Task list with modern background
     var taskList: some View {
         List {
             if filteredTasks.isEmpty {
@@ -297,50 +333,67 @@ struct TaskListView: View {
                 ForEach(filteredTasks) { task in
                     taskRow(task: task)
                 }
-                
+
                 // Bottom spacer
                 Color.clear
                     .frame(height: 76)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.white)
+                    .listRowBackground(Color.clear)
             }
         }
         .listStyle(.plain)
-        .background(Color.white)
+        .background(AppTheme.appBackground)
+        .scrollContentBackground(.hidden)
     }
     
     // Empty state view
     var emptyTaskView: some View {
-        EmptyTaskView(onAddTask: { 
+        EmptyTaskView(onAddTask: {
             switchToAppropriateTabForNewTask()
-            showingAddTask = true 
+            showingAddTask = true
         })
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets())
-        .listRowBackground(Color.white)
+        .listRowBackground(Color.clear)
     }
     
-    // Edit button
+    // Edit button with modern styling
     var editButton: some View {
         Button(action: {
-            withAnimation {
+            // Haptic feedback
+            let generator = UIImpactFeedbackGenerator(style: .light)
+            generator.impactOccurred()
+
+            withAnimation(AppTheme.UI.springAnimation) {
                 isEditMode.toggle()
                 if !isEditMode {
                     selectedTaskIds.removeAll()
                 }
             }
         }) {
-            if isEditMode {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Color(hex: "#5D4EFF"))
-            } else {
-                Image(systemName: "square.and.pencil")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color(hex: "#5D4EFF"))
+            ZStack {
+                Circle()
+                    .fill(
+                        isEditMode
+                        ? LinearGradient(
+                            colors: [AppTheme.successColor, AppTheme.successColor.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        : LinearGradient(
+                            colors: [AppTheme.accentColor.opacity(0.1), AppTheme.accentColor.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 36, height: 36)
+
+                Image(systemName: isEditMode ? "checkmark" : "square.and.pencil")
+                    .font(.system(size: isEditMode ? 17 : 16, weight: .semibold))
+                    .foregroundColor(isEditMode ? .white : AppTheme.accentColor)
             }
         }
         .disabled(filteredTasks.isEmpty)
@@ -439,7 +492,7 @@ struct TaskListView: View {
                 if let id = task.id {
                     withAnimation {
                         dataController.toggleTaskCompletion(id: id)
-                        
+
                         // Force a UI update for task list filtering
                         DispatchQueue.main.async {
                             // Post notification to force fetch request update
@@ -448,7 +501,7 @@ struct TaskListView: View {
                                 object: nil,
                                 userInfo: ["taskId": id, "forceRefreshFetchRequest": true]
                             )
-                            
+
                             // Refresh all objects to ensure filter is applied
                             viewContext.refreshAllObjects()
                         }
@@ -456,15 +509,15 @@ struct TaskListView: View {
                 }
             } label: {
                 Label(
-                    task.isCompleted ? "Incomplete" : "Complete", 
+                    task.isCompleted ? "Incomplete" : "Complete",
                     systemImage: task.isCompleted ? "circle" : "checkmark.circle.fill"
                 )
             }
-            .tint(task.isCompleted ? .gray : Color(hex: "#5D4EFF"))
+            .tint(task.isCompleted ? AppTheme.secondaryText : AppTheme.successColor)
         }
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets())
-        .listRowBackground(Color.white)
+        .listRowBackground(Color.clear)
     }
     
     // MARK: - Methods
@@ -714,30 +767,58 @@ struct FilterButton: View {
     let accentColor: Color
     var namespace: Namespace.ID
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
+            VStack(spacing: 6) {
                 Text(filter.name)
-                    .font(.system(size: 14))
-                    .fontWeight(isSelected ? .semibold : .medium)
-                    .foregroundColor(isSelected ? accentColor : .gray)
+                    .font(.system(
+                        size: AppTheme.Typography.subheadline,
+                        weight: isSelected ? .bold : .medium
+                    ))
+                    .foregroundStyle(
+                        isSelected
+                        ? LinearGradient(
+                            colors: [AppTheme.accentColor, AppTheme.accentColorDark],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        : LinearGradient(
+                            colors: [AppTheme.secondaryText, AppTheme.secondaryText],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
                     .fixedSize(horizontal: true, vertical: false)
-                
+
+                // Modern animated indicator
                 ZStack {
                     if isSelected {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(accentColor)
-                            .frame(height: 2)
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [AppTheme.primaryGradientStart, AppTheme.primaryGradientEnd],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(height: 3)
                             .frame(width: AppTheme.UI.filterIndicatorWidth)
+                            .shadow(
+                                color: AppTheme.accentColor.opacity(0.4),
+                                radius: 4,
+                                x: 0,
+                                y: 2
+                            )
                             .matchedGeometryEffect(id: "underline", in: namespace)
                     } else {
                         Color.clear
-                            .frame(height: 2)
+                            .frame(height: 3)
                             .frame(width: AppTheme.UI.filterIndicatorWidth)
                     }
                 }
             }
+            .padding(.vertical, 4)
         }
         .buttonStyle(.plain)
     }
@@ -748,25 +829,67 @@ struct FilterButton: View {
 struct FloatingAddButton: View {
     var action: () -> Void
     @Environment(\.colorScheme) private var colorScheme
-    
+
     var body: some View {
         VStack {
             Spacer()
-            
+
             HStack {
                 Spacer()
-                
+
                 Button(action: action) {
                     ZStack {
+                        // Outer glow effect
                         Circle()
-                            .fill(AppTheme.accentColor)
+                            .fill(
+                                RadialGradient(
+                                    colors: [
+                                        AppTheme.accentColor.opacity(0.3),
+                                        AppTheme.accentColor.opacity(0.0)
+                                    ],
+                                    center: .center,
+                                    startRadius: 20,
+                                    endRadius: 45
+                                )
+                            )
+                            .frame(width: 80, height: 80)
+
+                        // Main button with modern gradient
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        AppTheme.primaryGradientStart,
+                                        AppTheme.primaryGradientEnd
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
                             .frame(width: AppTheme.UI.floatingButtonSize, height: AppTheme.UI.floatingButtonSize)
-                            .shadow(color: AppTheme.accentColor.opacity(colorScheme == .dark ? 0.3 : 0.4), 
-                                    radius: 8, x: 0, y: 4)
-                        
+                            .shadow(
+                                color: AppTheme.accentColor.opacity(0.4),
+                                radius: 12,
+                                x: 0,
+                                y: 6
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [Color.white.opacity(0.3), Color.clear],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1.5
+                                    )
+                            )
+
+                        // Plus icon with subtle shadow
                         Image(systemName: "plus")
-                            .font(.system(size: 24, weight: .semibold))
+                            .font(.system(size: 26, weight: .bold))
                             .foregroundColor(.white)
+                            .shadow(color: Color.black.opacity(0.2), radius: 2, x: 0, y: 1)
                     }
                 }
                 .buttonStyle(ScaleButtonStyle())

@@ -194,6 +194,61 @@ extension Category {
     }
 }
 
+// MARK: - TaskTemplate Extensions
+extension TaskTemplate {
+    var safeName: String {
+        return name ?? "Untitled Template"
+    }
+    
+    var safeDescription: String {
+        return templateDescription ?? ""
+    }
+    
+    var safeCategory: String {
+        return category ?? "General"
+    }
+    
+    var safeIcon: String {
+        return icon ?? "list.bullet"
+    }
+    
+    var templateTasksArray: [TemplateTask] {
+        let set = templateTasks as? Set<TemplateTask> ?? []
+        return Array(set).sorted { $0.orderIndex < $1.orderIndex }
+    }
+    
+    var formattedDateCreated: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: dateCreated ?? Date())
+    }
+}
+
+// MARK: - TemplateTask Extensions
+extension TemplateTask {
+    var safeTitle: String {
+        return title ?? "Untitled Task"
+    }
+    
+    var safeDescription: String {
+        return taskDescription ?? ""
+    }
+    
+    var safeCategoryName: String {
+        return categoryName ?? ""
+    }
+    
+    var priorityEnum: TaskPriority {
+        return TaskPriority(rawValue: priority) ?? .medium
+    }
+    
+    var dueDateFromNow: Date? {
+        guard dueDateOffset != 0 else { return nil }
+        return Calendar.current.date(byAdding: .day, value: Int(dueDateOffset), to: Date())
+    }
+}
+
 // Helper to get hex from Color
 extension Color {
     var hex: String {

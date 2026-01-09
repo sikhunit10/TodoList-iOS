@@ -28,36 +28,50 @@ struct TaskCardView: View {
         // Get gradient based on priority
         let gradientColors = TaskStyleUtils.priorityGradient(priority: priority)
         
-        // Card with shadow and border
+        // Modern card with clean white background
         ZStack {
-            // Background based on color scheme
-            RoundedRectangle(cornerRadius: 14)
-                .fill(colorScheme == .dark ? Color(.systemGray6) : Color.white)
-                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), 
-                        radius: 5, x: 0, y: 2)
-                        
-            // Top gradient line for priority - only shown when not highlighted
+            // Base card with pure white background
+            RoundedRectangle(cornerRadius: AppTheme.CornerRadius.lg)
+                .fill(colorScheme == .dark ? AppTheme.cardBackgroundDark : Color.white)
+                .shadow(
+                    color: AppTheme.Shadow.card.color,
+                    radius: AppTheme.Shadow.card.radius,
+                    x: AppTheme.Shadow.card.x,
+                    y: AppTheme.Shadow.card.y
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppTheme.CornerRadius.lg)
+                        .stroke(AppTheme.borderColor.opacity(0.2), lineWidth: 0.5)
+                )
+
+            // Modern gradient accent bar for priority - only shown when not highlighted
             VStack(spacing: 0) {
-                // Hide priority bar when highlighted
                 if !isHighlighted {
-                    Rectangle()
-                        .fill(LinearGradient(
-                            gradient: Gradient(colors: gradientColors),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ))
-                        .frame(height: 4)
-                        .cornerRadius(14, corners: [.topLeft, .topRight])
+                    LinearGradient(
+                        gradient: Gradient(colors: gradientColors),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(height: 3)
+                    .cornerRadius(AppTheme.CornerRadius.lg, corners: [.topLeft, .topRight])
+                    .shadow(color: gradientColors[0].opacity(0.3), radius: 4, x: 0, y: 2)
                 }
-                
+
                 Spacer()
             }
-            
-            // Highlight overlay for notification-tapped task - now on top of everything
+
+            // Highlight overlay with modern pulsing effect
             if isHighlighted {
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color.red, lineWidth: 4)
-                    .shadow(color: Color.red.opacity(0.5), radius: 6, x: 0, y: 0)
+                RoundedRectangle(cornerRadius: AppTheme.CornerRadius.lg)
+                    .stroke(
+                        LinearGradient(
+                            colors: [AppTheme.errorColor, AppTheme.secondaryAccent],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 3
+                    )
+                    .shadow(color: AppTheme.errorColor.opacity(0.4), radius: 8, x: 0, y: 0)
             }
             
             // Content with reduced spacing - simplified structure
@@ -146,17 +160,21 @@ struct TaskCardHeaderView: View {
             AppTheme.accentColor
             
         HStack(alignment: .center, spacing: 14) {
-            // Checkbox with animated press effect
+            // Modern checkbox with gradient and haptic feedback
             Button(action: {
                 if let id = task.id {
-                    // Call the toggle task method with animation
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    // Haptic feedback
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.impactOccurred()
+
+                    // Call the toggle task method with smooth spring animation
+                    withAnimation(AppTheme.UI.springAnimation) {
                         dataController.toggleTaskCompletion(id: id)
-                        
-                        // Force refresh to ensure UI updates - both the task and fetch request
+
+                        // Force refresh to ensure UI updates
                         task.managedObjectContext?.refresh(task, mergeChanges: true)
-                        
-                        // Post a specific notification to force the list view to update its fetch request
+
+                        // Post notification to update list view
                         NotificationCenter.default.post(
                             name: .tasksDidChange,
                             object: nil,
@@ -166,48 +184,143 @@ struct TaskCardHeaderView: View {
                 }
             }) {
                 ZStack {
-                    Circle()
-                        .fill(isCompleted ? categoryColor.opacity(0.15) : Color.clear)
-                        .frame(width: 32, height: 32)
-                    
-                    Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
-                        .foregroundColor(isCompleted ? categoryColor : .secondary)
-                        .font(.system(size: 22, weight: .semibold))
+                    // Outer glow when completed
+                    if isCompleted {
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [categoryColor.opacity(0.2), categoryColor.opacity(0.05)],
+                                    center: .center,
+                                    startRadius: 5,
+                                    endRadius: 20
+                                )
+                            )
+                            .frame(width: 40, height: 40)
+                    }
+
+                    // Main circle with gradient border
+                    ZStack {
+                        Circle()
+                            .strokeBorder(
+                                isCompleted
+                                ? LinearGradient(
+                                    colors: [categoryColor, categoryColor.opacity(0.7)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                                : LinearGradient(
+                                    colors: [AppTheme.tertiaryText, AppTheme.tertiaryText],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 2.5
+                            )
+                            .frame(width: 28, height: 28)
+
+                        // Checkmark with animation
+                        if isCompleted {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [categoryColor, categoryColor.opacity(0.8)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .transition(.scale.combined(with: .opacity))
+                        }
+                    }
                 }
             }
             .buttonStyle(ScaleButtonStyle())
             
-            // Title and due date if near
-            VStack(alignment: .leading, spacing: 2) {
-                // Title
+            // Title and due date with modern typography
+            VStack(alignment: .leading, spacing: 4) {
+                // Title with better font
                 Text(title)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(isCompleted ? .secondary : .primary)
-                    .strikethrough(isCompleted)
+                    .font(.system(size: AppTheme.Typography.callout, weight: .semibold))
+                    .foregroundColor(isCompleted ? AppTheme.secondaryText : AppTheme.primaryText)
+                    .strikethrough(isCompleted, color: AppTheme.tertiaryText)
                     .lineLimit(1)
-                
-                // Due date countdown if within 3 days and not completed
+
+                // Due date countdown with modern badge
                 if let dueDate = dueDate, DateUtils.isDueSoon(dueDate) && !isCompleted {
-                    Text(DateUtils.formatDueDate(dueDate))
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(DateUtils.isOverdue(dueDate) ? .red : .orange)
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.fill")
+                            .font(.system(size: 9, weight: .bold))
+                        Text(DateUtils.formatDueDate(dueDate))
+                            .font(.system(size: AppTheme.Typography.caption1, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(
+                                DateUtils.isOverdue(dueDate)
+                                ? LinearGradient(
+                                    colors: [AppTheme.errorColor, AppTheme.errorColor.opacity(0.8)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                                : LinearGradient(
+                                    colors: [AppTheme.warningColor, AppTheme.warningColor.opacity(0.8)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .shadow(
+                                color: (DateUtils.isOverdue(dueDate) ? AppTheme.errorColor : AppTheme.warningColor).opacity(0.3),
+                                radius: 4,
+                                x: 0,
+                                y: 2
+                            )
+                    )
                 }
             }
-            
+
             Spacer()
-            // Recurrence indicator for recurring tasks
-            if task.recurrenceRuleEnum != .none {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.secondary)
-            }
-            
-            // Priority flag
-            if priority > 1 {
-                Image(systemName: priority == 3 ? "flag.fill" : "flag")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(gradientColors[0])
-                    .shadow(color: gradientColors[0].opacity(0.3), radius: 2, x: 0, y: 1)
+
+            // Modern icon badges for recurrence and priority
+            HStack(spacing: 8) {
+                // Recurrence indicator with modern style
+                if task.recurrenceRuleEnum != .none {
+                    ZStack {
+                        Circle()
+                            .fill(AppTheme.accentColor.opacity(0.1))
+                            .frame(width: 32, height: 32)
+
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [AppTheme.accentColor, AppTheme.accentColorDark],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
+                }
+
+                // Priority flag with gradient
+                if priority > 1 {
+                    ZStack {
+                        Circle()
+                            .fill(gradientColors[0].opacity(0.12))
+                            .frame(width: 32, height: 32)
+
+                        Image(systemName: priority == 3 ? "flag.fill" : "flag.fill")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: gradientColors,
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
+                }
             }
         }
         .padding(.horizontal, 16)
